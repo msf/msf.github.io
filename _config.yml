@@ -1,3 +1,6 @@
 remote_theme: pages-themes/cayman@v0.2.0
+twitter_username: m3thos
+github_username: msf
+linkedin_username: miguelmfilipe
 plugins:
 - jekyll-remote-theme # add this line to the plugins list if you already have one
