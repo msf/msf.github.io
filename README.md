@@ -1,10 +1,30 @@
+# Miguel's tiny page
+
+TODO:
+- add link to professional resume
+- mention specific systems that I worked on that I have a particular liking
+- have a section about my tech-stack and personal tech setup
+- publish some of my past talks in the form of posts:
+  - what is innovation?
+  - "view under the hood" of dynamoDB (from my personal memory)
+  - design docs and how emotional or rational they are.
+- link to some toy repos of mine
+- link to my "publications" (including the software patents while at DynamoDB) 
+
 ## About me
 
-I’m Miguel, and I like to solve problems so much that one of my mottos is *“problems are waiting to be solved”.* On twitter “Sui *generis, creative & adventurer. Loves distributed systems, hard problems, and First Principles Engineering”*
+I’m Miguel Mascarenhas Filipe, and I like to solve problems so much that one of my mottos is *“problems are waiting to be solved”.* On twitter “Sui *generis, creative & adventurer. Loves distributed systems, hard problems, and First Principles Engineering”*
 
 At Dune I’m the Tech Lead and Software Engineer on the API team.
 
 My professional background has a ~6y stint on large scale distributed (and high throughput) systems at AWS/DynamoDB and Microsoft/Skype and ~12y on startup environments from 20 to 250 people.
+
+## About this page
+
+I've been thinking about having a simple page where I can put some thoughts or share something, either about technical tastes, preferences or whatnot. I use twitter to microblog (https://twitter.com/m3thos).
+
+I kicked off this page with the contents of the "about me" internal page that we used in Dune (where I work).
+Please note that this page is my *personal* site, with *my personal opinions*. 
 
 ## Communication Style
 
