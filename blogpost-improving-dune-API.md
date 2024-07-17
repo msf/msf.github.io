@@ -116,7 +116,7 @@ DuckDB is a full-blown, high performance embedded analytics database and has an 
 
 Our query results just so happen to be stored in compressed JSON, so we could query them w/ DuckDB, additionally, we could migrate to Parquet as a format and reap multiple benefits: much smaller files, much faster loading and querying times and would the format is also compatible with DuneSQL opening future options on what we can do with query results, our vast data-lake and DuneSQL.
 
-[NOTE: for the sake of brevity I'm not including some design considerations and non-functional requiremts such as high availability, fault tolerance, scalability, security (auth, confidentiality & integrity)]
+[NOTE: for the sake of brevity I'm not including many design considerations and non-functional requiremts such as high availability, fault tolerance, scalability, security (auth, confidentiality & integrity)]
 
 
 ## final architecture
