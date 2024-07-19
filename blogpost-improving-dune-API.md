@@ -1,10 +1,8 @@
 # A short story of how we've improved Dune API by using DuckDB
 
-At Dune we really like to listen to our customers, we wanted to improve our API and started to collect user feedback, complains and bug reports.
-This is a story of how a simple, prioritized feature request: Support Query Result Pagination for larger results
-Evolved into a much more comprehensive improvement that involved adopting DuckDB at Dune.
+At Dune, we value our customers’ feedback and are committed to continuously improving our services. This is the story of how a simple, prioritized feature request—supporting query result pagination for larger results—evolved into a comprehensive improvement involving the adoption of DuckDB at Dune.
 
-We've learned a lot during this short time and wanted to share some of our experience and what we've been building..
+We’ve learned a lot during this journey and are excited to share our experiences and the new functionalities we’ve been building.
 
 ## Outline
 
@@ -17,61 +15,56 @@ We've learned a lot during this short time and wanted to share some of our exper
 
 ## Motivation & Context
 
-Lets start with the user feedback and the repeated "feature request":
-Dune API doesn't support pagination and is the maximum size of query result is limited (~1GB)
+The journey began with user feedback and a repeated feature request: “Dune API doesn’t support pagination, and the maximum size of query results is limited (~1GB).” Users needed to read larger results, which required supporting pagination. At the end of 2023, we finally prioritized resolving this issue. This feature request was the catalyst that sparked this work.
 
-Users wanted to be able to read larger results and that required supporting larger results and that implied the need for pagination.
 At the end of 2023 we FINALLY prioritized resolving this. NOTE: here's the [resulting Pagination API](https://docs.dune.com/api-reference/executions/pagination)
 
-### Why ?
 
-Up until very recently, our API was focussed solely on executing Dune queries and being able to read their results.
+## Why no pagination and 1GB limit?
 
-The limitations of our service were also related to the original use of [Dune Analytics](https://DUNE.COM), that exposes crypto data in easy visualizations, tells stories using dashboards, graphs and the queries are there to support that.
+To address this question, let’s start with understanding our initial architecture and its limitations.
 
-So, this leads into a basic architectural structure:
+Our original capabilities were designed to serve the needs of [Dune Analytics](https://DUNE.COM), a platform focused on visualizing crypto data through dashboards and graphs. This use case leveraged the following architectural decisions:
 
-- Dashboards are made of one or more visualizations.
-- Visualizations use (and re-use) the result of a given query.
-- Queries are long lived, they are configured to have visualizations
+  1. Query-Driven Visualizations: Each visualization on a dashboard was tied to a specific query ID. This setup allowed for consistent and static data views, which were suitable for our initial visualization-centric use cases.
+  1. Powerful Query Execution: SQL Queries offer the expressiveness and capability for rich and complex data manipulations required to query and aggregate large datasets
+  1. Small, Reusable Query Results: Visualizations typically require manageable data sizes, optimized for quick rendering on dashboards. Large datasets were unnecessary, as visual elements have limited pixel space and do not need millions of data points.
+  1. Caching: To improve performance, we cached query results. This approach was suitable for dashboards that repeatedly accessed the same query results, reducing the need for re-execution.
 
-This implies:
+However, these design choices led to significant limitations:
 
-- we should cache our query results because it is repeatedly used.
-- the results in principle aren't very large, they're designed to support visualizations that have limited pixel space and therefore can't make use of millions of datapoints.
-- When we need the data, we need all of it (with rare exceptions)
-- the App works better with small query results because it loads them into memory to render visualizations, etc..
+- 1GB Result Cap: The API was capped at 1GB per query result because larger results were unnecessary for visualization purposes and could overwhelm the system’s memory.
+- No Pagination: Since visualizations generally required the entire dataset at once, there was no need for pagination.
+- Expensive Query Execution: our query execution can be too slow or computationally expensive
 
-The first DuneAPI was simply an API service that exposed the internal machinery we have to support this rich [dune.com](https://dune.com) Web Application. As such, it suffered from limitations such as:
+## Expanding the Use Cases Served by Dune API
 
-- the execution of a query doesn't support >1GB (the app doesnt need it, in fact large results kill the app because we)
-- there was no pagination support (not needed)
-- the queries must reference a query-ID
-- query execution is computationally expensive and slow
+To truly serve our developer community, we needed to look holistically at their needs, beyond just supporting pagination. Our goal was to create features that seamlessly integrate with each other and existing Dune functionalities.
 
-## Seeing further & expanding the use cases served by Dune API
+### Understanding Developer Needs Through User Stories
 
-For API uses of crypto data, we realized we were not serving a lot of valid use cases and it was pretty much impossible to serve a very normal set of use cases using our API, it was too limited and too stuck to internal limitations.
+Instead of focusing narrowly on specific feature requests, we explored real-world use cases and “jobs to be done.” This approach helped us understand the broader context of developer needs. We crafted concrete user stories to guide our feature development:
 
-So we started to write up "usecases" of the API that started from simple stories such like:
-    TODO: put here two simple user stories of two Devs and their apps/cases (Jesse and Logan)
-    - one user story needs to search/filter a large query result by wallet address or zoom in a particular time-window.
-    - one user story feeds specifically data to chart
-    - one user story uses pagination, such as doing data science on a much larger set of crypto transactions
+  1. Search and Filter: Jesse needs an app to search and filter large query results by wallet address or time window, requiring advanced filtering and efficient handling of large datasets.
+  2. Data for Charts: Logan needs to feed specific data into charts for mobile, requiring low network data usage and dynamic sorting and filtering.
+  3. Data Science: Another use case involves performing data science on large sets of crypto transactions, emphasizing the need for pagination and efficient data handling.
 
-Our approach is to create a very concrete real world examples and dig into the "jobs to be done", their specific needs but also broader context.
+**Fictitious Example: Joan’s Mobile App**
 
-One fictitious example:
-  "Joan, a developer wants to write a mobile app that will have visualizations of Wallet Balances, where the user of her app follows their Wallets activity through time in an infographics way. As such, Joan mobile app on each phone will render a slightly different data (per wallet address for example) of the data. Also, in such types of use, it must be truly inexpensive for the developer to do a dozen or so request to the DuneAPI to serve each users of the app for this to economically viable."
+Consider Joan, a developer who wants to create a mobile app that visualizes Wallet Balances. Her app allows users to follow their wallet activities over time through infographics. For Joan’s app to be viable, it must be inexpensive to make multiple requests to DuneAPI for each user.
 
-This is just a single example, the point here is thinking from the users' perspective and visualize the functionalities such a customer would need or want.
+This example underscores the importance of thinking from the users’ perspective and visualizing the functionalities they need. It’s not just about a single feature but how different features can work together.
 
-In summary, there are a few different angles we wanted to explore:
+**Holistic Approach to API Development**
 
-- Use this as the start of a new API that is a lot more flexible, focussed on Application needs and not pinned to execution of SQL queries.
-- use a real life application as an example of use-cases the API should serve well (the Dune dashboarding functionality)
-- Leverage new technology to bridge our user's needs and our small engineering team.
-- Focus on maximizing value by extending the usecases we can cover with existing DUNE queries and query-results.
+By stepping back and considering these diverse use cases, we aimed to build a more flexible API focused on application needs rather than strictly on SQL query execution. Our approach involved:
+
+- Flexibility and Integration: Developing an API that easily integrates with existing Dune functionalities.
+- Real-Life Applications: Using real-life applications, like Dune dashboarding, to guide feature development.
+- Leveraging Technology: Using new technologies to bridge user needs and our engineering capabilities.
+- Maximizing Value: Extending the use cases we cover with existing DUNE queries and query results, maximizing the value provided to our users.
+
+This holistic approach not only addressed immediate feature requests but also paved the way for a more robust and versatile DuneAPI, empowering developers to build innovative applications.
 
 ## DuneSQL & Query Results
 
@@ -150,3 +143,13 @@ But by integrating well with other functionalities of Dune (such as [Query Sched
   - [EigenLayer](https://docs.dune.com/api-reference/eigenlayer/introduction) and [Farcaster](https://docs.dune.com/api-reference/farcaster/introduction): Metrics and data related to specific projects and technologies.
   - [Marketplace Marketshare](https://docs.dune.com/api-reference/markets/endpoint/marketplace_marketshare): Key market indicators and trends.
   - [Linea](https://docs.dune.com/api-reference/projects/endpoint/linea_lxp): Insights and data on specific blockchain project
+
+## Conclusion
+
+As we navigated the journey of enhancing DuneAPI, we experienced firsthand “feature creep”—you know, that moment when you start with a simple request and end up redesigning half the system. But feature creep doesn’t have to be scary. By stepping back and looking at the bigger picture of our customers’ needs, we found opportunities to innovate and build a better service.
+
+Incorporating DuckDB was not just about addressing a single feature request; it was about rethinking how we can serve our users more effectively. By being open to evolving our approach and investing in scalable, efficient technologies, we’ve expanded the capabilities of DuneAPI, making it a powerful tool for developers.
+
+We hope you find these new features and improvements valuable. As always, we’re excited to see how you’ll leverage them to create even more amazing applications and insights. Stay tuned for more updates, and keep those feedback and feature requests coming—they’re the real MVPs!
+
+For more details, visit our API documentation.
