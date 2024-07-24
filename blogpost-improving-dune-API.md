@@ -16,7 +16,7 @@ We’ve learned a lot during this journey and are excited to share our experienc
 
 ## Motivation & Context
 
-The journey began with user feedback and a repeated feature request: “Dune API doesn’t support pagination, and the maximum size of query results is limited (~1GB).” Users needed to read larger results, which required supporting pagination. At the end of 2023, we finally prioritized resolving this issue. This feature request was the catalyst that sparked this work.
+The journey began with user feedback and a repeated feature request: “Dune API doesn’t support pagination, and the maximum size of query results is limited (~1GB).” Users needed to read larger results, which required supporting pagination. At the end of 2023, we finally prioritized resolving this issue.
 
 ### Why no pagination and 1GB limit?
 
@@ -66,7 +66,7 @@ This holistic approach not only addressed immediate feature requests but also pa
 
 ## DuneSQL & Query Results
 
-All our data at Dune is queriable with [DuneSQL](https://dune.com/blog/introducing-dune-sql). Users utilize it to query our 1.8 million tables, producing the insightful public dashboards on dune.com. Given the vast amount of tables and their sizes, DuneSQL employs [Trino](https://trino.io) , a distributed query engine that uses extensive parallel compute to query our data lake. DuneSQL queries are extremely powerful but heavyweight, with response times often around a dozen seconds or more.
+All our data at Dune is queriable with [DuneSQL](https://dune.com/blog/introducing-dune-sql). Users utilize it to query our 1.8 million tables, producing the insightful public dashboards on dune.com. Given the vast amount of tables and their sizes, DuneSQL employs [Trino](https://trino.io), a distributed query engine that uses extensive parallel compute to query our data lake. DuneSQL queries are extremely powerful but heavyweight, with response times often around a dozen seconds or more.
 
 We've improved Trino to better meet our needs before ([#18719](https://github.com/trinodb/trino/pull/18719), [#21609](https://github.com/trinodb/trino/pull/21609), [#21602](https://github.com/trinodb/trino/pull/21602), [#20851](https://github.com/trinodb/trino/pull/20851), [#20662](https://github.com/trinodb/trino/pull/20662), [more](https://github.com/trinodb/trino/pulls?q=is%3Apr+author%3Ajkylling)). Lets look at what we need to meet our new needs.
 
@@ -112,7 +112,7 @@ In short, while DuneSQL is incredibly powerful, adapting it to meet these new re
 
 ## Using DuckDB as a Stepping Stone
 
-We switched to search for new technologies that better meet our needs.  Here’s a breakdown of our thought process and why we ultimately chose [DuckDB](https://duckdb.org).
+We switched to search for new technologies that better meet our needs. Here’s a breakdown of our thought process and why we ultimately chose [DuckDB](https://duckdb.org).
 
 ### Evaluating Options
 
