@@ -68,9 +68,7 @@ This holistic approach not only addressed immediate feature requests but also pa
 
 All our data at Dune is queriable with [DuneSQL](https://dune.com/blog/introducing-dune-sql). Users utilize it to query our 1.8 million tables, producing the insightful public dashboards on dune.com. Given the vast amount of tables and their sizes, DuneSQL employs [Trino](https://trino.io) , a distributed query engine that uses extensive parallel compute to query our data lake. DuneSQL queries are extremely powerful but heavyweight, with response times often around a dozen seconds or more.
 
-![Image of existing execution architecture](diagram.png)
-
-We've improved Trinoto better meet our needs before ([#18719](https://github.com/trinodb/trino/pull/18719), [#21609](https://github.com/trinodb/trino/pull/21609), [#21602](https://github.com/trinodb/trino/pull/21602), [#20851](https://github.com/trinodb/trino/pull/20851), [#20662](https://github.com/trinodb/trino/pull/20662), [more](https://github.com/trinodb/trino/pulls?q=is%3Apr+author%3Ajkylling)). Lets look at what we need to meet our new needs.
+We've improved Trino to better meet our needs before ([#18719](https://github.com/trinodb/trino/pull/18719), [#21609](https://github.com/trinodb/trino/pull/21609), [#21602](https://github.com/trinodb/trino/pull/21602), [#20851](https://github.com/trinodb/trino/pull/20851), [#20662](https://github.com/trinodb/trino/pull/20662), [more](https://github.com/trinodb/trino/pulls?q=is%3Apr+author%3Ajkylling)). Lets look at what we need to meet our new needs.
 
 Running a filter or query on an existing result requires:
 
@@ -78,11 +76,43 @@ Running a filter or query on an existing result requires:
 - **Low-Latency Response**: Queries must return results within 100-200 milliseconds for interactive use.
 - **Cost-Effective Execution**: Ensuring execution is inexpensive enough to allow multiple requests per user interaction.
 
+This diagram illustrates the architecture of a typical DuneSQL deployment, including the Dune Website, Dune API, Query Execution layer, and the DuneSQL clusters.
+
+```mermaid
+graph LR
+    R[Browser] -.-> A
+    S[Application] -.-> B
+    A[Dune Website] -->|gRPC| X[Query Execution API]
+    B[Dune API] -->|gRPC| X[Query Execution API]
+
+    subgraph "DuneSQL"
+      subgraph "Trino Gateway"
+          B1
+      end
+      subgraph "Trino Clusters"
+          C
+          D
+          E
+      end
+    end
+
+    subgraph "Query Execution"
+        X[Execution API] -.-> Y
+        X[Execution API] -.-> Z
+        Y[Worker 1] -->|ODBC| B1[Trino Coordinator]
+        Z[Worker N]
+    end
+
+    B1[Trino Gateway] -.-> C[Trino Cluster 1]
+    B1[Trino Gateway] -.-> D[Trino Cluster 2]
+    B1[Trino Gateway] -.-> E[Trino Cluster N]
+```
+
 In short, while DuneSQL is incredibly powerful, adapting it to meet these new requirements was challenging. It required significant engineering effort to modify Trino to handle cached query results efficiently while maintaining low latency and cost-effective execution, demonstrating that DuneSQL was not the ideal solution for these specific needs.
 
 ## Using DuckDB as a Stepping Stone
 
-We switched to explore new technologies that better meet our needs.  Here’s a breakdown of our thought process and why we ultimately chose [DuckDB](https://duckdb.org).
+We switched to search for new technologies that better meet our needs.  Here’s a breakdown of our thought process and why we ultimately chose [DuckDB](https://duckdb.org).
 
 ### Evaluating Options
 
@@ -112,30 +142,27 @@ We needed a query engine that could:
 - **Fast Query Execution**: Deliver results in under 100 milliseconds.
 - **Cost-Effective**: Lightweight and inexpensive, allowing multiple queries per minute without significant costs.
 
-### Choosing DuckDB
-
-We explored using DuckDB as an embedded, fast query engine on our API server side. The idea was to load (and cache) our query results into DuckDB quickly, enabling us to serve API requests with sub 100 millisecond response times. This approach would allow us to meet user demands efficiently and cost-effectively.
+[NOTE: For the sake of brevity, I'm not including many design considerations and non-functional requirements such as high availability, fault tolerance, scalability, security (auth, confidentiality, and integrity).]
 
 ### Advantages of DuckDB
 
-DuckDB stood out due to its features:
+We experimented using DuckDB as an embedded, fast query engine on our API server side. The idea was to load (and cache) our query results into DuckDB quickly, enabling us to serve API requests with sub 100 millisecond response times. This approach would allow us to meet user demands efficiently and cost-effectively.
+
+DuckDB stood out due to its features and benefits:
 
 - **Data Format Support**: It supports querying and loading data directly from JSON and Parquet.
-- **High-Performance SQL Engine**: Its robust and modern SQL engine could support our required features and allow for future enhancements.
+- **High-Performance SQL Engine**: Its robust and modern SQL engine supported our required usecases within our latency and cost requirements.
+- **Flexibility**: The ability to handle advanced query functionalitities and larger datasets without significant changes.
 - **Easy to use**: We had a working prototype of loading and querying our query results in an single day.
 
 Our query results, stored in compressed JSON, were compatible with DuckDB. Migrating to Parquet brought benefits like smaller file sizes, and faster load/query times. Parquet's compatibility with DuneSQL opened new possibilities for integrating query results with our vast data lake.
 
-### Implementation and Benefits
+Here are the performance metrics from production, demonstrating DuckDB's efficiency. We observed that 95% of queries were completed with response times under 100 milliseconds. In the majority of cases, response times were impressively fast, typically between 1 to 2 milliseconds.
 
-By adopting DuckDB, we achieved:
+DuckDB Query Response Time: ![DuckDB Query Response Time](duckdb-query-duration.png)
 
-- **High-Speed Query Execution**: Under 100 millisecond response times. We measured 1 or 2 milliseconds in common cases.
-- **Efficient Data Handling**: Support for larger datasets and advanced query functionalities.
-- **Scalability**: The ability to handle more queries simultaneously without significant cost increases.
-- **Flexibility**: The ability to handle more types of queries without significant changes.
-
-[NOTE: For the sake of brevity, I'm not including many design considerations and non-functional requirements such as high availability, fault tolerance, scalability, security (auth, confidentiality, and integrity).]
+DuckDB Query Result Load Time:
+![DuckDB Query Result Load Time](duckdb-cache-load-time.png) and
 
 In summary, DuckDB provided the performance, flexibility, and future-proofing we needed to enhance our API and serve our users better. This strategic choice enabled us to extend our functionalities and offer a more robust and versatile platform for developers.
 
@@ -143,7 +170,39 @@ In summary, DuckDB provided the performance, flexibility, and future-proofing we
 
 So now at Dune we run & operate two database technologies that are directly used by our users: [DuneSQL](https://dune.com/blog/introducing-dune-sql) & [DuckDB](https://duckdb.org), for both of them we have deeply integrated them and have specific APIs and features to better serve our users. We have also fully migrated all user queriable data: both the Tables and the Query Results to Parquet.
 
-Our final architecture resembles this:
+Our final architecture diagram now resembles this:
+
+```mermaid
+graph LR
+    R[Browser] -.-> A
+    S[Application] -.-> B
+    A[Dune Website] -->|gRPC| X[Query Execution API]
+    B[Dune API] -->|gRPC| X[Query Execution API]
+
+    subgraph "DuneSQL"
+      subgraph "Trino Gateway"
+          B1
+      end
+      subgraph "Trino Clusters"
+          C
+          D
+          E
+      end
+    end
+
+    subgraph "Query Execution"
+        X[Execution API] -.-> Y
+        X[Execution API] -.-> Z
+        X[Execution API] --> DuckDB
+        Y[Worker 1] -->|ODBC| B1[Trino Coordinator]
+        Z[Worker 2]
+    end
+
+    B1[Trino Gateway] -.-> C[Trino Cluster 1]
+    B1[Trino Gateway] -.-> D[Trino Cluster 2]
+    B1[Trino Gateway] -.-> E[Trino Cluster N]
+```
+
 ![Dune system's diagram for query execution](blogpost-query-systems-diagram.png)
 
 ## New Features and APIs powered by DuckDB
