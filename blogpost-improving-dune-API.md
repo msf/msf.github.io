@@ -1,4 +1,4 @@
-# A short story of how we've improved Dune API by using DuckDB
+# How we've improved Dune API using DuckDB
 
 At [Dune](https://dune.com), we value our customers’ feedback and are committed to continuously improving our services. This is the story of how a simple, prioritized feature request for [DuneAPI](https://dune.com/product/api) —supporting query result pagination for larger results—evolved into a comprehensive improvement involving the adoption of [DuckDB](https://duckdb.org) at Dune.
 
@@ -77,36 +77,7 @@ Running a filter or query on an existing result requires:
 - **Cost-Effective Execution**: Ensuring execution is inexpensive enough to allow multiple requests per user interaction.
 
 This diagram illustrates the architecture of a typical DuneSQL deployment, including the Dune Website, Dune API, Query Execution layer, and the DuneSQL clusters.
-
-```mermaid
-graph LR
-    R[Browser] -.-> A
-    S[Application] -.-> B
-    A[Dune Website] -->|gRPC| X[Query Execution API]
-    B[Dune API] -->|gRPC| X[Query Execution API]
-
-    subgraph "DuneSQL"
-      subgraph "Trino Gateway"
-          B1
-      end
-      subgraph "Trino Clusters"
-          C
-          D
-          E
-      end
-    end
-
-    subgraph "Query Execution"
-        X[Execution API] -.-> Y
-        X[Execution API] -.-> Z
-        Y[Worker 1] -->|ODBC| B1[Trino Coordinator]
-        Z[Worker N]
-    end
-
-    B1[Trino Gateway] -.-> C[Trino Cluster 1]
-    B1[Trino Gateway] -.-> D[Trino Cluster 2]
-    B1[Trino Gateway] -.-> E[Trino Cluster N]
-```
+![Dune system's diagram for query execution](blogpost-query-systems-diagram-before.png)
 
 In short, while DuneSQL is incredibly powerful, adapting it to meet these new requirements was challenging. It required significant engineering effort to modify Trino to handle cached query results efficiently while maintaining low latency and cost-effective execution, demonstrating that DuneSQL was not the ideal solution for these specific needs.
 
@@ -171,39 +142,7 @@ In summary, DuckDB provided the performance, flexibility, and future-proofing we
 So now at Dune we run & operate two database technologies that are directly used by our users: [DuneSQL](https://dune.com/blog/introducing-dune-sql) & [DuckDB](https://duckdb.org), for both of them we have deeply integrated them and have specific APIs and features to better serve our users. We have also fully migrated all user queriable data: both the Tables and the Query Results to Parquet.
 
 Our final architecture diagram now resembles this:
-
-```mermaid
-graph LR
-    R[Browser] -.-> A
-    S[Application] -.-> B
-    A[Dune Website] -->|gRPC| X[Query Execution API]
-    B[Dune API] -->|gRPC| X[Query Execution API]
-
-    subgraph "DuneSQL"
-      subgraph "Trino Gateway"
-          B1
-      end
-      subgraph "Trino Clusters"
-          C
-          D
-          E
-      end
-    end
-
-    subgraph "Query Execution"
-        X[Execution API] -.-> Y
-        X[Execution API] -.-> Z
-        X[Execution API] --> DuckDB
-        Y[Worker 1] -->|ODBC| B1[Trino Coordinator]
-        Z[Worker 2]
-    end
-
-    B1[Trino Gateway] -.-> C[Trino Cluster 1]
-    B1[Trino Gateway] -.-> D[Trino Cluster 2]
-    B1[Trino Gateway] -.-> E[Trino Cluster N]
-```
-
-![Dune system's diagram for query execution](blogpost-query-systems-diagram.png)
+![Dune system's diagram for query execution with DuckDB](blogpost-query-systems-diagram-after.png)
 
 ## New Features and APIs powered by DuckDB
 
