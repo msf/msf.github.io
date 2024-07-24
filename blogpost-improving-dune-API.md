@@ -1,26 +1,24 @@
 # A short story of how we've improved Dune API by using DuckDB
 
-At Dune, we value our customers’ feedback and are committed to continuously improving our services. This is the story of how a simple, prioritized feature request—supporting query result pagination for larger results—evolved into a comprehensive improvement involving the adoption of DuckDB at Dune.
+At [Dune](https://dune.com), we value our customers’ feedback and are committed to continuously improving our services. This is the story of how a simple, prioritized feature request for [DuneAPI](https://dune.com/product/api) —supporting query result pagination for larger results—evolved into a comprehensive improvement involving the adoption of [DuckDB](https://duckdb.org) at Dune.
 
 We’ve learned a lot during this journey and are excited to share our experiences and the new functionalities we’ve been building.
 
 ## Outline
 
 - Motivation & Context
-- Seeing further & expanding the use cases served by Dune API
+- Expanding the use cases served by Dune API
 - DuneSQL & Query Results
-- Using DuckDB as a stepping stone
-- final architecture
+- Using DuckDB as a Stepping Stone
+- Final architecture
 - New APIs launched
+- Conclusion
 
 ## Motivation & Context
 
 The journey began with user feedback and a repeated feature request: “Dune API doesn’t support pagination, and the maximum size of query results is limited (~1GB).” Users needed to read larger results, which required supporting pagination. At the end of 2023, we finally prioritized resolving this issue. This feature request was the catalyst that sparked this work.
 
-At the end of 2023 we FINALLY prioritized resolving this. NOTE: here's the [resulting Pagination API](https://docs.dune.com/api-reference/executions/pagination)
-
-
-## Why no pagination and 1GB limit?
+### Why no pagination and 1GB limit?
 
 To address this question, let’s start with understanding our initial architecture and its limitations.
 
@@ -68,56 +66,82 @@ This holistic approach not only addressed immediate feature requests but also pa
 
 ## DuneSQL & Query Results
 
-All our data available at Dune is queriable with DuneSQL, users use it to query our 1.8Millions tables and produce the amazing insights we can see in the public dashboards on dune.com. Due to the vast amount of tables and their sizes, DuneSQL is a distributed query engine (Trino) that uses massive amounts of parallel compute to query our data-lake. DunesSQL queries are extremely powerful but heavyweight and the query response is around a dozen seconds (or quite a few more)
+All our data at Dune is queriable with [DuneSQL](https://dune.com/blog/introducing-dune-sql). Users utilize it to query our 1.8 million tables, producing the insightful public dashboards on dune.com. Given the vast amount of tables and their sizes, DuneSQL employs [Trino](https://trino.io) , a distributed query engine that uses extensive parallel compute to query our data lake. DuneSQL queries are extremely powerful but heavyweight, with response times often around a dozen seconds or more.
 
-[NOTE: We've extended and modified Trino for our needs before[LINK HERE], we could extend it further..]
+![Image of existing execution architecture](diagram.png)
 
-Being able to run a filter or a query on an existing query result would mean running a DuneSQL Query on it, this imples:
+We've improved Trinoto better meet our needs before ([#18719](https://github.com/trinodb/trino/pull/18719), [#21609](https://github.com/trinodb/trino/pull/21609), [#21602](https://github.com/trinodb/trino/pull/21602), [#20851](https://github.com/trinodb/trino/pull/20851), [#20662](https://github.com/trinodb/trino/pull/20662), [more](https://github.com/trinodb/trino/pulls?q=is%3Apr+author%3Ajkylling)). Lets look at what we need to meet our new needs.
 
-- DuneSQL must support reading/querying the cached result (which it didn't at the time)
-- Executing a Query on DuneSQL, requiring more (costly) compute capacity
-- DuneSQL supporting low-latency query response time, filtering a result or paginating should take less than  100-200 milliseconds.
-- Execution must be inexpensive, so that a single app can do dozens of requests per interactive user on it.
+Running a filter or query on an existing result requires:
 
-In short, we would have an uphill battle to shoehorn DuneSQL to serve well our new needs. It just isn't the right tech for the task at hand.
+- **Reading/Querying Cached Results**: Support our cached Results format.
+- **Low-Latency Response**: Queries must return results within 100-200 milliseconds for interactive use.
+- **Cost-Effective Execution**: Ensuring execution is inexpensive enough to allow multiple requests per user interaction.
 
-## Using DuckDB as a stepping stone
+In short, while DuneSQL is incredibly powerful, adapting it to meet these new requirements was challenging. It required significant engineering effort to modify Trino to handle cached query results efficiently while maintaining low latency and cost-effective execution, demonstrating that DuneSQL was not the ideal solution for these specific needs.
 
-Okay, lets build (or leverage) new Tech!
+## Using DuckDB as a Stepping Stone
 
-The options we have are:
+We switched to explore new technologies that better meet our needs.  Here’s a breakdown of our thought process and why we ultimately chose [DuckDB](https://duckdb.org).
 
-- implement our needs directly ourselves ontop of the data-format we use for our query-results (which was compressed JSON at the time)
-- Load our query-results into some database that we then leverage it to provide the needed functionalities.
+### Evaluating Options
 
-We also need to consider possible growths of functionality beyong the exact ones that we highlighted, some of them are very easy to anticipate:
+We had two primary options:
 
-- allow for min/max/mean or some other aggregation function on some column of the result
-- allow re-ordering the result by any column
-- allow for much larger results (increase limit from 1GB to 20B or 50GB for example)
+1. **Load Query Results into Another Database**: This approach would involve selecting a database with better cost-effective performance suited to our use case than Trino.
+2. **Implement Features Directly**: Building our functionalities on top of our existing query-result format (which was compressed JSON).
 
-Some functionalities are very easy to implement ourselves (we could've just implemented pagination, and closed the "API pagination" issue on our issue tracker).
-But trying to support much larger results, fast search/filtering on rows or columns or sampling would be akin to re-implementing a simplistic query execution engine. We decided to explore query engines that would have an easy way to implement our needs:
+### Considering Future Growth
 
-- support our query result format
-- query execution time under 100 milliseconds
-- inexpensive/lighweight, so that the user can run dozens/hundreds every minute for free
+Beyond our immediate needs, we also had to plan for future functionalities:
 
-We explored using DuckDB as an embeded fast query engine, but running on our server side.
-The "crazy idea" was: if we can load our query results into duckDB fast, then we can serve all requests of the new API from this DB, where the query response time will be in single-milliseconds. Allowing us to serve all the user's queries quickly and with marginal cost.
+- **Aggregation Functions**: Allowing for aggregation operations on specific columns.
+- **Re-ordering Results**: Enabling re-ordering by any column.
+- **Handling Larger Results**: Increasing the query result limit from 1GB to potentially 20GB or more.
+- **Parquet Query Result Format**: Improving our query results format, moving from compressed JSON to Parquet.
 
-DuckDB is a full-blown, high performance embedded analytics database and has an extensive set of modern day features such as:
+### Technical Challenges
 
-- supports querying and loading data directly from JSON and Parquet
-- has a high performance SQL query engine we can lean into it to support the features we need and have an easy path to increase our functionality in the future.
+While some functionalities, like pagination, were straightforward, supporting larger results, fast search/filtering on rows or columns, and sampling required more sophisticated solutions. Re-implementing these from scratch would be akin to developing a new query execution engine.
 
-Our query results just so happen to be stored in compressed JSON, so we could query them w/ DuckDB, additionally, we could migrate to Parquet as a format and reap multiple benefits: much smaller files, much faster loading and querying times and would the format is also compatible with DuneSQL opening future options on what we can do with query results, our vast data-lake and DuneSQL.
+### Criteria for a New Query Engine
 
-[NOTE: for the sake of brevity I'm not including many design considerations and non-functional requiremts such as high availability, fault tolerance, scalability, security (auth, confidentiality & integrity)]
+We needed a query engine that could:
+
+- **Support Our Query Result Format**: Compatible with compressed JSON and Parquet.
+- **Fast Query Execution**: Deliver results in under 100 milliseconds.
+- **Cost-Effective**: Lightweight and inexpensive, allowing multiple queries per minute without significant costs.
+
+### Choosing DuckDB
+
+We explored using DuckDB as an embedded, fast query engine on our API server side. The idea was to load (and cache) our query results into DuckDB quickly, enabling us to serve API requests with sub 100 millisecond response times. This approach would allow us to meet user demands efficiently and cost-effectively.
+
+### Advantages of DuckDB
+
+DuckDB stood out due to its features:
+
+- **Data Format Support**: It supports querying and loading data directly from JSON and Parquet.
+- **High-Performance SQL Engine**: Its robust and modern SQL engine could support our required features and allow for future enhancements.
+- **Easy to use**: We had a working prototype of loading and querying our query results in an single day.
+
+Our query results, stored in compressed JSON, were compatible with DuckDB. Migrating to Parquet brought benefits like smaller file sizes, and faster load/query times. Parquet's compatibility with DuneSQL opened new possibilities for integrating query results with our vast data lake.
+
+### Implementation and Benefits
+
+By adopting DuckDB, we achieved:
+
+- **High-Speed Query Execution**: Under 100 millisecond response times. We measured 1 or 2 milliseconds in common cases.
+- **Efficient Data Handling**: Support for larger datasets and advanced query functionalities.
+- **Scalability**: The ability to handle more queries simultaneously without significant cost increases.
+- **Flexibility**: The ability to handle more types of queries without significant changes.
+
+[NOTE: For the sake of brevity, I'm not including many design considerations and non-functional requirements such as high availability, fault tolerance, scalability, security (auth, confidentiality, and integrity).]
+
+In summary, DuckDB provided the performance, flexibility, and future-proofing we needed to enhance our API and serve our users better. This strategic choice enabled us to extend our functionalities and offer a more robust and versatile platform for developers.
 
 ## Final Architecture
 
-So now at Dune we run & operate two database technologies that are directly used by our users: Trino & DuckDB, for both of them we have deeply integrated them and have specific APIs and features to better serve our users. We have also fully migrated all user queriable data: both the Tables and the Query Results to Parquet.
+So now at Dune we run & operate two database technologies that are directly used by our users: [DuneSQL](https://dune.com/blog/introducing-dune-sql) & [DuckDB](https://duckdb.org), for both of them we have deeply integrated them and have specific APIs and features to better serve our users. We have also fully migrated all user queriable data: both the Tables and the Query Results to Parquet.
 
 Our final architecture resembles this:
 ![Dune system's diagram for query execution](blogpost-query-systems-diagram.png)
@@ -146,10 +170,10 @@ But by integrating well with other functionalities of Dune (such as [Query Sched
 
 ## Conclusion
 
-As we navigated the journey of enhancing DuneAPI, we experienced firsthand “feature creep”—you know, that moment when you start with a simple request and end up redesigning half the system. But feature creep doesn’t have to be scary. By stepping back and looking at the bigger picture of our customers’ needs, we found opportunities to innovate and build a better service.
+As we navigated the journey of enhancing DuneAPI, we experienced firsthand “feature creep”— that moment when you start with a simple request and end up redesigning half the system. But feature creep doesn’t have to be scary. By stepping back and looking at the bigger picture of our customers’ needs, we found opportunities to innovate and build a better service.
 
-Incorporating DuckDB was not just about addressing a single feature request; it was about rethinking how we can serve our users more effectively. By being open to evolving our approach and investing in scalable, efficient technologies, we’ve expanded the capabilities of DuneAPI, making it a powerful tool for developers.
+Incorporating [DuckDB](https://duckdb.org) was not just about addressing a single feature request; it was about rethinking how we can serve our users more effectively. By being open to evolving our approach and investing in scalable, efficient technologies, we’ve expanded the capabilities of DuneAPI, making it a powerful tool for developers.
 
 We hope you find these new features and improvements valuable. As always, we’re excited to see how you’ll leverage them to create even more amazing applications and insights. Stay tuned for more updates, and keep those feedback and feature requests coming—they’re the real MVPs!
 
-For more details, visit our API documentation.
+For more details, visit our [API documentation](https://docs.dune.com/api-reference/overview/introduction).
