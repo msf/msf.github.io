@@ -2,17 +2,10 @@
 
 At [Dune](https://dune.com), we value our customers’ feedback and are committed to continuously improving our services. This is the story of how a simple, prioritized feature request for [DuneAPI](https://dune.com/product/api) —supporting query result pagination for larger results—evolved into a comprehensive improvement involving the adoption of [DuckDB](https://duckdb.org) at Dune.
 
+[![Dune API](blogpost-duneapi-build-tools.png)](https://dune.com/product/api)
+
 We’ve learned a lot during this journey and are excited to share our experiences and the new functionalities we’ve been building.
 
-## Outline
-
-- Motivation & Context
-- Expanding the use cases served by Dune API
-- DuneSQL & Query Results
-- Using DuckDB as a Stepping Stone
-- Final architecture
-- New APIs launched
-- Conclusion
 
 ## Motivation & Context
 
@@ -22,10 +15,13 @@ The journey began with user feedback and a repeated feature request: “Dune API
 
 To address this question, let’s start with understanding our initial architecture and its limitations.
 
-Our original capabilities were designed to serve the needs of [Dune Analytics](https://DUNE.COM), a platform focused on visualizing crypto data through dashboards and graphs. This use case leveraged the following architectural decisions:
+Our original capabilities were designed to serve the needs of [Dune Analytics](https://DUNE.COM), a platform focused on visualizing crypto data through dashboards and graphs. [![Dune Dashboard Example](blogpost-dune-charts-example.png)](https://dune.com/discover/content/trending)
 
-  1. Query-Driven Visualizations: Each visualization on a dashboard was tied to a specific query ID. This setup allowed for consistent and static data views, which were suitable for our initial visualization-centric use cases.
+ This use case leveraged the following architectural decisions:
+
+  1. Query-Driven Visualizations: Each visualization on a dashboard was tied to a specific SQL query. This setup allowed for consistent and static data views, which were suitable for our initial visualization-centric use cases.
   1. Powerful Query Execution: SQL Queries offer the expressiveness and capability for rich and complex data manipulations required to query and aggregate large datasets
+[![Dune Query Editor](6655dc7b50448fd316a4a9f7_Dune_Query.png)](https://dune.com/queries)
   1. Small, Reusable Query Results: Visualizations typically require manageable data sizes, optimized for quick rendering on dashboards. Large datasets were unnecessary, as visual elements have limited pixel space and do not need millions of data points.
   1. Caching: To improve performance, we cached query results. This approach was suitable for dashboards that repeatedly accessed the same query results, reducing the need for re-execution.
 
@@ -33,7 +29,7 @@ However, these design choices led to significant limitations:
 
 - 1GB Result Cap: The API was capped at 1GB per query result because larger results were unnecessary for visualization purposes and could overwhelm the system’s memory.
 - No Pagination: Since visualizations generally required the entire dataset at once, there was no need for pagination.
-- Expensive Query Execution: our query execution can be too slow or computationally expensive
+- Expensive Query Execution: our query execution is powerful but can be too slow or computationally expensive
 
 ## Expanding the Use Cases Served by Dune API
 
@@ -47,7 +43,7 @@ Instead of focusing narrowly on specific feature requests, we explored real-worl
   2. Data for Charts: Logan needs to feed specific data into charts for mobile, requiring low network data usage and dynamic sorting and filtering.
   3. Data Science: Another use case involves performing data science on large sets of crypto transactions, emphasizing the need for pagination and efficient data handling.
 
-**Fictitious Example: Joan’s Mobile App**
+**Example: Joan’s Mobile App**
 
 Consider Joan, a developer who wants to create a mobile app that visualizes Wallet Balances. Her app allows users to follow their wallet activities over time through infographics. For Joan’s app to be viable, it must be inexpensive to make multiple requests to DuneAPI for each user.
 
@@ -73,7 +69,7 @@ We've improved Trino to better meet our needs before ([#18719](https://github.co
 Running a filter or query on an existing result requires:
 
 - **Reading/Querying Cached Results**: Support our cached Results format.
-- **Low-Latency Response**: Queries must return results within 100-200 milliseconds for interactive use.
+- **Low-Latency Response**: Queries must return within 100-200 milliseconds for interactive use.
 - **Cost-Effective Execution**: Ensuring execution is inexpensive enough to allow multiple requests per user interaction.
 
 This diagram illustrates the architecture of a typical DuneSQL deployment, including the Dune Website, Dune API, Query Execution layer, and the DuneSQL clusters.
@@ -99,7 +95,7 @@ Beyond our immediate needs, we also had to plan for future functionalities:
 - **Aggregation Functions**: Allowing for aggregation operations on specific columns.
 - **Re-ordering Results**: Enabling re-ordering by any column.
 - **Handling Larger Results**: Increasing the query result limit from 1GB to potentially 20GB or more.
-- **Parquet Query Result Format**: Improving our query results format, moving from compressed JSON to Parquet.
+- **Parquet Query Result Format**: Improving our query results format, moving from compressed JSON to [Parquet](https://parquet.apache.org/docs/overview/).
 
 ### Technical Challenges
 
@@ -110,7 +106,7 @@ While some functionalities, like pagination, were straightforward, supporting la
 We needed a query engine that could:
 
 - **Support Our Query Result Format**: Compatible with compressed JSON and Parquet.
-- **Fast Query Execution**: Deliver results in under 100 milliseconds.
+- **Fast Query Execution**: Return results in less than 100 milliseconds.
 - **Cost-Effective**: Lightweight and inexpensive, allowing multiple queries per minute without significant costs.
 
 [NOTE: For the sake of brevity, I'm not including many design considerations and non-functional requirements such as high availability, fault tolerance, scalability, security (auth, confidentiality, and integrity).]
@@ -133,7 +129,7 @@ Here are the performance metrics from production, demonstrating DuckDB's efficie
 DuckDB Query Response Time: ![DuckDB Query Response Time](duckdb-query-duration.png)
 
 DuckDB Query Result Load Time:
-![DuckDB Query Result Load Time](duckdb-cache-load-time.png) and
+![DuckDB Query Result Load Time](duckdb-cache-load-time.png)
 
 In summary, DuckDB provided the performance, flexibility, and future-proofing we needed to enhance our API and serve our users better. This strategic choice enabled us to extend our functionalities and offer a more robust and versatile platform for developers.
 
