@@ -6,7 +6,6 @@ At [Dune](https://dune.com), we value our customers’ feedback and are committe
 
 We’ve learned a lot during this journey and are excited to share our experiences and the new functionalities we’ve been building.
 
-
 ## Motivation & Context
 
 The journey began with user feedback and a repeated feature request: “Dune API doesn’t support pagination, and the maximum size of query results is limited (~1GB).” Users needed to read larger results, which required supporting pagination. At the end of 2023, we finally prioritized resolving this issue.
@@ -15,7 +14,7 @@ The journey began with user feedback and a repeated feature request: “Dune API
 
 To address this question, let’s start with understanding our initial architecture and its limitations.
 
-Our original capabilities were designed to serve the needs of [Dune Analytics](https://DUNE.COM), a platform focused on visualizing crypto data through dashboards and graphs. [![Dune Dashboard Example](blogpost-dune-charts-example.png)](https://dune.com/discover/content/trending)
+Our original capabilities were designed to serve the needs of [Dune Analytics](https://dune.com), a platform focused on visualizing crypto data through dashboards and graphs. [![Dune Dashboard Example](blogpost-dune-charts-example.png)](https://dune.com/discover/content/trending)
 
  This use case leveraged the following architectural decisions:
 
@@ -29,7 +28,7 @@ However, these design choices led to significant limitations:
 
 - 1GB Result Cap: The API was capped at 1GB per query result because larger results were unnecessary for visualization purposes and could overwhelm the system’s memory.
 - No Pagination: Since visualizations generally required the entire dataset at once, there was no need for pagination.
-- Expensive Query Execution: our query execution is powerful but can be too slow or computationally expensive
+- Complex Query Execution: our query execution is powerful but massively complex queries can be too slow
 
 ## Expanding the Use Cases Served by Dune API
 
@@ -47,7 +46,6 @@ Instead of focusing narrowly on specific feature requests, we explored real-worl
 
 Consider Joan, a developer who wants to create a mobile app that visualizes Wallet Balances. Her app allows users to follow their wallet activities over time through infographics. For Joan’s app to be viable, it must be inexpensive to make multiple requests to DuneAPI for each user.
 
-This example underscores the importance of thinking from the users’ perspective and visualizing the functionalities they need. It’s not just about a single feature but how different features can work together.
 
 **Holistic Approach to API Development**
 
@@ -55,14 +53,14 @@ By stepping back and considering these diverse use cases, we aimed to build a mo
 
 - Flexibility and Integration: Developing an API that easily integrates with existing Dune functionalities.
 - Real-Life Applications: Using real-life applications, like Dune dashboarding, to guide feature development.
-- Leveraging Technology: Using new technologies to bridge user needs and our engineering capabilities.
-- Maximizing Value: Extending the use cases we cover with existing DUNE queries and query results, maximizing the value provided to our users.
+- Embrace new Technology: Using new technologies to bridge user needs and our engineering capabilities.
+- Maximizing Value: Extending the use cases we cover with existing Dune queries and query results, maximizing the value provided to our users.
 
 This holistic approach not only addressed immediate feature requests but also paved the way for a more robust and versatile DuneAPI, empowering developers to build innovative applications.
 
 ## DuneSQL & Query Results
 
-All our data at Dune is queriable with [DuneSQL](https://dune.com/blog/introducing-dune-sql). Users utilize it to query our 1.8 million tables, producing the insightful public dashboards on dune.com. Given the vast amount of tables and their sizes, DuneSQL employs [Trino](https://trino.io), a distributed query engine that uses extensive parallel compute to query our data lake. DuneSQL queries are extremely powerful but heavyweight, with response times often around a dozen seconds or more.
+All our data at Dune is queriable with [DuneSQL](https://dune.com/blog/introducing-dune-sql). Users utilize it to query our 1.8 million tables, producing the insightful public dashboards on dune.com. Given the vast amount of tables and their sizes, DuneSQL employs [Trino](https://trino.io), a distributed query engine that uses extensive parallel compute to query our data lake. DuneSQL queries are extremely powerful but heavyweight, with average response times often around a dozen seconds or more, whilst reading many GBs of data.
 
 We've improved Trino to better meet our needs before ([#18719](https://github.com/trinodb/trino/pull/18719), [#21609](https://github.com/trinodb/trino/pull/21609), [#21602](https://github.com/trinodb/trino/pull/21602), [#20851](https://github.com/trinodb/trino/pull/20851), [#20662](https://github.com/trinodb/trino/pull/20662), [more](https://github.com/trinodb/trino/pulls?q=is%3Apr+author%3Ajkylling)). Lets look at what we need to meet our new needs.
 
