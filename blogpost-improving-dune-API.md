@@ -169,3 +169,5 @@ Incorporating [DuckDB](https://duckdb.org) was not just about addressing a singl
 We hope you find these new features and improvements valuable. As always, we’re excited to see how you’ll leverage them to create even more amazing applications and insights. Stay tuned for more updates, and keep those feedback and feature requests coming—they’re the real MVPs!
 
 For more details, visit our [API documentation](https://docs.dune.com/api-reference/overview/introduction).
+
+Special thanks to Alsie, Jonathan and Wilhelm for their review and feedback.
