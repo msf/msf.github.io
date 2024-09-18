@@ -6,7 +6,7 @@ TODO:
 - have a section about my tech-stack and personal tech setup
 - publish some of my past talks in the form of posts:
   - what is innovation?
-  - "view under the hood" of dynamoDB (from my personal memory)
+  - ["view under the hood" of dynamoDB](DynamoDB-a-view-under-the-hood.pdf) (from my personal memory)
   - design docs and how emotional or rational they are.
   - [How we improved DuneAPI using DuckDB](blogpost/blogpost-improving-dune-API.md)
 - link to some toy repos of mine
