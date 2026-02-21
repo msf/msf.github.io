@@ -9,6 +9,7 @@ TODO:
   - ["view under the hood" of dynamoDB](DynamoDB-a-view-under-the-hood.pdf) (from my personal memory)
   - design docs and how emotional or rational they are.
   - [How we improved DuneAPI using DuckDB](blogpost/blogpost-improving-dune-API.md)
+  - [Can local LLMs actually write Go?](blogpost/benchmarking-local-llms-go-coding.md)
 - link to some toy repos of mine
 - link to my "publications" (including the software patents while at DynamoDB) 
 
