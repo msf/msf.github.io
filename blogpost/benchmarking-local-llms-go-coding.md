@@ -8,7 +8,9 @@ So I spent an evening with opencode + Claude Opus 4.6 scripting a bench harness 
 
 ## Setup
 
-Framework 13, RRyzen AI 370HX (so it has a Radeon 890M sharing VRAM w/ system RAM), 64GB. llama.cpp b7992 with `--temp 1 --seed 42 --jinja --single-turn`. 60 second timeout per task -- can I use a model with a very well scoped prompt to do real, simple Go code without errors?
+Framework 13, Ryzen AI 370HX (so it has a Radeon 890M sharing VRAM w/ system RAM), 64GB. Running Ubuntu 24.04 with kernel 6.17, llama.cpp b7992 using the Vulkan backend (ROCm support for this GPU isn't there yet -- when it is, these numbers should improve significantly). `--temp 1 --seed 42 --jinja --single-turn`. 60 second timeout per task -- can I use a model with a very well scoped prompt to do real, simple Go code without errors?
+
+I tried a bunch of models first just to get a feel for tok/s and RAM usage. The limiting factor on this laptop is throughput -- anything much bigger than ~20B params is too slow to be practical. The models below are what made the cut.
 
 ## Three tasks
 
@@ -20,7 +22,7 @@ Scoring is automated: compiles (1pt) + runs (1pt) + correct output (2pt) + error
 
 I iterated on the prompts a lot. First version just said "write a Go program that prints factorial of 10" and Qwen3 literally printed `10`. Fair enough -- I wasn't specific. Final prompts explicitly mention `package main` and hint at which stdlib packages to use, otherwise half the models hallucinate APIs that don't exist (`fmt.Stdin`, etc).
 
-## The models (I picked these based on their size and their token generation using the Vulkan backend of llama.cpp, bigger ones on this laptop are too slow)
+## The models
 
 | Model | Params | Quant | Size |
 |-------|--------|-------|------|
@@ -113,12 +115,55 @@ TIMEOUT=120 MODEL_DIR=/my/models ./bench.sh         # tweak
 
 Raw outputs, Go source, and scoring metadata end up in `bench_results/<model>/<task>.*`.
 
-Script: [github.com/msf/llm-code-bench](https://github.com/msf/llm-code-bench)
+Scripts: [bench.sh](bench.sh) and [exam.sh](exam.sh) (co-located with this post)
 
 ## What's next
 
-**Exam mode** -- all three tasks in one prompt, one timeout. Like a real coding test where the model allocates its own time. The verbose models that barely finish one task in 60s would get destroyed.
+~~**Exam mode** -- all three tasks in one prompt, one timeout. Like a real coding test where the model allocates its own time. The verbose models that barely finish one task in 60s would get destroyed.~~ Done, see below.
 
 **Quant comparison** -- same model at Q4 vs Q8. Does quantization affect code quality or just speed?
 
 **More models, same test** -- keep the benchmark fixed, test new models as they drop. That's the point of automating it.
+
+## Exam mode: all three programs in one prompt
+
+The individual tests give each model one task at a time with stdlib hints in the prompt. That's generous. A better test: one prompt, all three programs, no hand-holding on which packages to use, 180 second timeout for the lot. Like an actual timed coding test.
+
+The prompt asks the model to output all three files wrapped in `#START filename.go#` / `#END filename.go#` markers so the harness can split them out. No stdlib hints -- the model has to know Go's standard library on its own.
+
+```
+Model                               Exam   Wall     Individual
+gpt-oss-20b                        13/15   1:23     13/15
+Qwen3-8B                           11/15   0:37     13/15
+DeepSeek-Coder-V2-Lite              9/15   0:41     13/15
+gemma-3n-E4B-it                     8/15   1:02      9/15
+qwen2.5-coder-3b                    6/15   0:44      2/15
+DeepSeek-R1-Distill-14B             4/15   2:49      0/15
+gemma-3-4b-it                       4/15   0:35      4/15
+GLM-4.7-Flash-REAP                  3/15   2:17      4/15
+```
+
+This is where it gets interesting.
+
+**gpt-oss-20b is the only model that holds steady.** 13/15 on both individual and exam. When you remove the stdlib hints and ask for all three programs at once, gpt-oss doesn't flinch. Every other model that scored 13/15 individually dropped points.
+
+**Qwen3-8B degrades gracefully.** Goes from 13/15 to 11/15 -- wordfreq output was wrong but the code compiled and ran. Still the fastest at 37 seconds, still only 5GB of RAM. For the price, still the best deal.
+
+**DeepSeek-Coder-V2 dropped hard.** 13/15 to 9/15 -- its wordfreq didn't compile without the stdlib hints. Apparently it needed the hand-holding more than the others.
+
+**DeepSeek-R1 actually scored points.** The 180s exam timeout let it finish thinking and produce factorial code. Still 0/15 at 60s timeout but 4/15 at 180s. The thinking overhead is real but given enough time it can produce something.
+
+**qwen2.5-coder-3b improved from 2/15 to 6/15.** The exam format somehow worked better for this base model than individual prompts. Weird but reproducible.
+
+## Overall picture
+
+If I had to pick one model for local coding on this laptop: **Qwen3-8B**. 4.7GB, fast, good enough for simple tasks.
+
+If I had the RAM budget and wanted the most reliable: **gpt-oss-20b**. Only model that didn't degrade under harder conditions.
+
+The exam mode is the better test. Individual tasks with hints are too easy -- three models tied at 13/15 and you couldn't tell them apart. The exam revealed real differences in robustness.
+
+## Scripts
+
+- [bench.sh](bench.sh) -- individual tasks, one prompt per model per task
+- [exam.sh](exam.sh) -- exam mode, all three tasks in one prompt
