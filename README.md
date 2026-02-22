@@ -14,6 +14,15 @@ TODO:
 - link to some toy repos of mine
 - link to my "publications" (including the software patents while at DynamoDB) 
 
+## Technical Papers & Study Notes
+
+- [EVM Foundations (7-day study guide)](papers/EVM-Foundations.md) — Mental models of EVM execution, storage, state, and gas
+- [Snowflake Paper & Architecture Review](papers/Snowflake-paper.md) — Deep dive into Snowflake's OLAP database architecture
+
+## Conference Talks & Notes
+
+- [QCon London 2020](talks/conferences/2020-qcon-london/) — Notes from various talks
+
 ## About me
 
 I’m Miguel Mascarenhas Filipe, and I like to solve problems so much that one of my mottos is *“problems are waiting to be solved”.* On twitter “Sui *generis, creative & adventurer. Loves distributed systems, hard problems, and First Principles Engineering”*
