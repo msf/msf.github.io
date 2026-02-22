@@ -1,6 +1,8 @@
-# I tried running local LLMs on my Framework 13 to see if they can write Go
+# I benchmarked 8 local LLMs writing Go on my Framework 13 AMD Strix Point
 
-*February 2025*
+*February 2025 -- co-authored with Claude Opus 4.6 via [opencode](https://opencode.ai)*
+
+*Follow-up: [This is how SLOW Local LLMs Are On My Framework 13 AMD Strix Point](local-llm-performance-framework13.md)*
 
 I have a Framework 13 with a Ryzen AI 370HX and a bunch of GGUF models accumulating in `~/.cache/llama.cpp/`. I wanted to know if any of them can actually write Go that compiles and runs. Not vibes, not leaderboard numbers -- `go build` says yes or no. Goal was to have some sense of where local models are in terms of practical capability, being limited in size and available ram/compute
 
