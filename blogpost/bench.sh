@@ -7,7 +7,7 @@ set -euo pipefail
 # Filter:   MODEL_FILTER="Qwen3" ./bench.sh  (run only matching models)
 
 # --- CONFIG ---
-LLAMA_CLI="${LLAMA_CLI:-llama-cli}"
+LLAMA_CLI="${LLAMA_CLI:-llama-completion}"
 MODEL_DIR="${MODEL_DIR:-$HOME/.cache/llama.cpp}"
 CTX_SIZE="${CTX_SIZE:-4096}"
 N_PREDICT="${N_PREDICT:--2}"

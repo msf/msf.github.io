@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Exam mode: all 3 programs in a single prompt, single timeout
-LLAMA_CLI="${LLAMA_CLI:-llama-cli}"
+LLAMA_CLI="${LLAMA_CLI:-llama-completion}"
 MODEL_DIR="${MODEL_DIR:-$HOME/.cache/llama.cpp}"
 CTX_SIZE="${CTX_SIZE:-8192}"
 N_PREDICT="${N_PREDICT:--2}"
