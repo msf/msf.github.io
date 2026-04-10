@@ -8,17 +8,17 @@ TODO:
   - what is innovation?
   - ["view under the hood" of dynamoDB](DynamoDB-a-view-under-the-hood.pdf) (from my personal memory)
   - design docs and how emotional or rational they are.
-  - [How we improved DuneAPI using DuckDB](blogpost/blogpost-improving-dune-API.md)
-  - [I benchmarked 8 local LLMs writing Go on my Framework 13 AMD Strix Point](blogpost/benchmarking-local-llms-go-coding.md)
-  - [Gemma 4 vs Qwen3.5: benchmarking quantized local LLMs on Go coding](blogpost/local-llm-coding-harder-test.md)
-  - [You Won't BELIEVE How Slow Local LLMs Are On My Framework 13 AMD Strix Point](blogpost/local-llm-performance-framework13.md)
 - link to some toy repos of mine
-- link to my "publications" (including the software patents while at DynamoDB) 
+- link to my "publications" (including the software patents while at DynamoDB)
 
-## Technical Papers & Study Notes
+## Posts
 
-- [EVM Foundations (7-day study guide)](papers/EVM-Foundations.md) — Mental models of EVM execution, storage, state, and gas
-- [Snowflake Paper & Architecture Review](papers/Snowflake-paper.md) — Deep dive into Snowflake's OLAP database architecture
+- [Gemma 4 vs Qwen3.5: benchmarking quantized local LLMs on Go coding](blogpost/local-llm-coding-harder-test.md) — Apr 2026
+- [This is how SLOW Local LLMs Are On My Framework 13 AMD Strix Point](blogpost/local-llm-performance-framework13.md) — Feb 2026
+- [I benchmarked 8 local LLMs writing Go on my Framework 13 AMD Strix Point](blogpost/benchmarking-local-llms-go-coding.md) — Feb 2025
+- [EVM Foundations (7-day study guide)](papers/EVM-Foundations.md) — 2025
+- [How we improved Dune API using DuckDB](blogpost/blogpost-improving-dune-API.md) — 2024
+- [Snowflake Paper and Architecture Review](papers/Snowflake-paper.md) — 2023
 
 ## Conference Talks & Notes
 
@@ -26,9 +26,9 @@ TODO:
 
 ## About me
 
-I’m Miguel Mascarenhas Filipe, and I like to solve problems so much that one of my mottos is *“problems are waiting to be solved”.* On twitter “Sui *generis, creative & adventurer. Loves distributed systems, hard problems, and First Principles Engineering”*
+I'm Miguel Mascarenhas Filipe, and I like to solve problems so much that one of my mottos is *"problems are waiting to be solved"*. On twitter "Sui *generis, creative & adventurer. Loves distributed systems, hard problems, and First Principles Engineering"*
 
-At Dune I’m the Tech Lead and Software Engineer on the API team.
+At Dune I'm the Tech Lead and Software Engineer on the API team.
 
 My professional background has a ~6y stint on large scale distributed (and high throughput) systems at AWS/DynamoDB and Microsoft/Skype and ~12y on startup environments from 20 to 250 people.
 
@@ -37,32 +37,32 @@ My professional background has a ~6y stint on large scale distributed (and high 
 I've been thinking about having a simple page where I can put some thoughts or share something, either about technical tastes, preferences or whatnot. I use twitter to microblog (https://twitter.com/m3thos).
 
 I kicked off this page with the contents of the "about me" internal page that we used in Dune (where I work).
-Please note that this page is my *personal* site, with *my personal opinions*. 
+Please note that this page is my *personal* site, with *my personal opinions*.
 
 ## Communication Style
 
-I’m what they say: What you see is what you get. I’m straight to the point, very candid and prefer a very down-to earth open communication, erring on the side of verbosity. :-)
+I'm what they say: What you see is what you get. I'm straight to the point, very candid and prefer a very down-to earth open communication, erring on the side of verbosity. :-)
 
-I tend to think out loud during conversations to explain my reasoning further. I’m analytical and skeptical by nature, which at times might feel non-cooperative, but it’s simply my brain working out the problem.
+I tend to think out loud during conversations to explain my reasoning further. I'm analytical and skeptical by nature, which at times might feel non-cooperative, but it's simply my brain working out the problem.
 
 ## Working Style
 
-- I’ve played team sports all my life and am a team-player through and through. It’s such a big part of my work style that I’m always trying to help and teamwork even when not explicitly asked.
-- I like to think that I’m a first principles thinking person and always prefer to continuously iterate and improve on specific work practices and tech.
+- I've played team sports all my life and am a team-player through and through. It's such a big part of my work style that I'm always trying to help and teamwork even when not explicitly asked.
+- I like to think that I'm a first principles thinking person and always prefer to continuously iterate and improve on specific work practices and tech.
 - I do welcome unplanned conversations or talks about a problem that recently arose (such as a production issue) or brainstorming  creative uses of a system/technology for a problem.
-- I tend to follow a weekly flow for my work streams and I believe “planning helps us improvise better”, planning is essential but nothing is set in stone and we should learn and act based on new information as it arises.
-- I’m not a morning person, before my two daughters I used to be night owl :-)
+- I tend to follow a weekly flow for my work streams and I believe "planning helps us improvise better", planning is essential but nothing is set in stone and we should learn and act based on new information as it arises.
+- I'm not a morning person, before my two daughters I used to be night owl :-)
 - Every time I find something that should be improved, either in tech or in workflows or procedures, I always try to clarify the problem and propose a solution in a productive way.
 
 ## Personality Style
 
-If you like (or strongly believe) in personality tests, I’m a Meyers-Briggs ESTP.
+If you like (or strongly believe) in personality tests, I'm a Meyers-Briggs ESTP.
 
 According to wikipedia it maps to:
 
 - Outgoing, Realistic, Action-Oriented, Curious, Versatile, Spontaneous, Pragmatic, Problem-Solver, Skillful Negotiator
 
-I don’t know if I agree with the “skillful negotiator”, but I do fit the stereotype box quite well.
+I don't know if I agree with the "skillful negotiator", but I do fit the stereotype box quite well.
 
 I believe everything in life is a combination of:
 
@@ -74,20 +74,20 @@ I believe everything in life is a combination of:
 
 Please provide feedback as early as possible! In whatever form works best for you. I usually find face-to-face conversations easier because we get additional information from non-verbal expressions and tone of voice.
 
-You don’t need to use the sandwich of complement-feedback-complement, but fine if you use it. We’re all humans and we all like to hear positives once in a while.
+You don't need to use the sandwich of complement-feedback-complement, but fine if you use it. We're all humans and we all like to hear positives once in a while.
 
-Since we’re here, let me go ahead and share that one of my self-improvement never ending tasks is to be smoother and softer in the way in interact with others. I try hard to adjust my interaction styles to the audience. This is something that doesn’t come natural to me and I keep improving and working on it. Please provide any feedback you might have. :-)
+Since we're here, let me go ahead and share that one of my self-improvement never ending tasks is to be smoother and softer in the way in interact with others. I try hard to adjust my interaction styles to the audience. This is something that doesn't come natural to me and I keep improving and working on it. Please provide any feedback you might have. :-)
 
 ## Stuff I like
 
 - Sports
 - Lists!
 - Wilderness and Adventure
-- I love animals and if I wasn’t an engineer I’d probably be a veterinarian.
+- I love animals and if I wasn't an engineer I'd probably be a veterinarian.
 - Food & Drinks, both eating and preparing meals.
-- I’m a bit of a tree-hugger and follow renewable energies and Electric Vehicles avidly.
+- I'm a bit of a tree-hugger and follow renewable energies and Electric Vehicles avidly.
 
-Odd fact, I don’t play computer games, never found them that entertaining. On my down-time I over-consume wikipedia, reddit, youtube, kindle & technical papers
+Odd fact, I don't play computer games, never found them that entertaining. On my down-time I over-consume wikipedia, reddit, youtube, kindle & technical papers
 
 On youtube my subscriptions are around:
 
