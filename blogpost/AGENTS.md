@@ -29,7 +29,17 @@ Modify a 208-line Go scraper to add: memory buffer during outages, random evicti
 | qwen35-9b-q4km | 12.3/15 | 9-14 | 2.3/10 | 1/3 | 13.6 |
 | gemma4-e4b-q8 | 12.7/15 | 10-14 | 3.7/10 | 2/3 | 13.8 |
 
-Pruned (consistently bad): deepseek-coder-v2, deepseek-r1-14b, glm-flash, glm-flash-reap, gemma3n-e4b.
+Pruned after first round (exam_v1 scores from memory — result files were deleted during reorganization):
+
+| Model | v1 mean | v1 range | Notes |
+|-------|---------|----------|-------|
+| deepseek-coder-v2-16b | 10.3/15 | 9-13 | Legacy coder, outclassed |
+| glm-flash-30b | 10.0/15 | 9-12 | Dense 30B, too slow for score |
+| gemma3n-e4b-q8 | 8.0/15 | 5-10 | Previous gen Gemma |
+| glm-flash-reap-23b | 7.0/15 | 4-10 | MoE variant, worse than dense |
+| deepseek-r1-14b | 5.0/15 | 5-5 | Reasoning model with --reasoning off |
+
+Qwen3-8B (episode 1 champion at 4.7 GB) superseded by Qwen3.5-9B.
 
 ## Key findings
 
@@ -44,8 +54,10 @@ Why Gemma 4 wins over Qwen3.5-35B:
 ### gpt-oss-20b: best value
 14.0/15 (rock solid), 3.7/10 exam_v2, 2/3 compiles, 27 tok/s, **12 GB**. Smallest model that competes with the big MoEs. Dense, no draft model needed.
 
-### Qwen3.5-35B: fast but flaky
+### Qwen3.5-35B: fast but flaky (unexplained)
 Fastest MoE at 21-22 tok/s, exam_v1 is solid at Q4_K_M, but exam_v2 compile rate is poor (1/3 for Q4_K_M, 2/3 for Q5_K_M). Q5_K_M is the best quant if you use Qwen3.5 (28 GB).
+
+We don't fully understand why Qwen3.5 degrades more under quantization than Gemma 4. It leads on full-precision benchmarks (TB2 40.5%, SWE-bench 69.2%, TAU2 81.2) but is less reliable quantized locally. Hypothesis: Qwen3.5's hybrid architecture (Gated DeltaNet + 256 tiny experts) may be more sensitive to weight precision loss than Gemma 4's 128-expert MoE. Unproven.
 
 ### Quantization conclusions
 - **Gemma 4 26B**: quant doesn't matter. Q4_K_M = MXFP4 = Q5_K_M on both exams.
@@ -111,4 +123,10 @@ HF cache at `/mnt/ai-models/huggingface/hub/`. Active models:
 - Gemma 4 E4B: Q8_0
 - gpt-oss-20b: MXFP4
 
-Pruned from benchmarks (still on disk): DeepSeek-Coder-V2-Lite, DeepSeek-R1-14B, GLM-4.7-Flash, GLM-4.7-Flash-REAP, gemma-3n-E4B, Qwen3.5-4B.
+Pruned from benchmarks and deleted from disk (67 GB freed): DeepSeek-Coder-V2-Lite, DeepSeek-R1-14B, GLM-4.7-Flash, GLM-4.7-Flash-REAP, gemma-3n-E4B, Qwen3.5-4B. Their exam_v1 result.json files were also deleted during directory reorganization — only the scores in this file and the blogpost survive.
+
+## Open questions / TODOs
+- Why is Qwen3.5 so flaky under quantization? Need to investigate or find community analysis.
+- blog.mfilipe.eu deployment — need to figure out how the Jekyll build gets to that domain (CNAME? separate deploy?) to publish the new post there.
+- Agentic benchmarks for local models — Terminal-Bench 2 and SWE-bench have no quantized entries. We have the infra to run these but it would be a separate project.
+- More seeds (5 instead of 3) would increase confidence but GPU hours on iGPU are expensive.
