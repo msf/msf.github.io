@@ -1,4 +1,0 @@
-# Compiled binaries and build artifacts from exam evaluation
-*.bin
-*.build.log
-build/

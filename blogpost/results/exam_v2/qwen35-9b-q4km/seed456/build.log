@@ -1,3 +1,0 @@
-# exam
-./scraper.go:208:3: declared and not used: idx
-./scraper.go:222:18: invalid operation: base % (len(rs.buffer) - 1) (mismatched types int64 and int)

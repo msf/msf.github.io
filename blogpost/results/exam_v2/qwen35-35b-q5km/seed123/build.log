@@ -1,2 +1,0 @@
-# exam
-./scraper.go:228:81: invalid operation: len(metricsToSend) - metricsToSend (mismatched types int and []Metric)

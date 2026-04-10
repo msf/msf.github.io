@@ -1,6 +1,0 @@
-# exam
-./scraper.go:31:13: undefined: InverterData
-./scraper.go:78:34: undefined: InverterData
-./scraper.go:88:11: undefined: InverterData
-./scraper.go:210:20: undefined: InverterData
-./scraper.go:247:25: undefined: InverterData

@@ -1,2 +1,0 @@
-# exam
-./scraper.go:296:66: invalid operation: scraper (variable of type *HTTPScraper) is not an interface
