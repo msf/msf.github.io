@@ -2,7 +2,7 @@
 
 *February 2026 -- co-authored with Claude Opus 4.6.
 
-*Previous: [I benchmarked 8 local LLMs writing Go on my Framework 13 AMD Strix Point](benchmarking-local-llms-go-coding.md)*
+*Part 2/3 — [Part 3](local-llm-coding-harder-test.md) ← **Part 2** ← [Part 1](benchmarking-local-llms-go-coding.md)*
 
 Yes, the title is clickbaity :>. Veritasium has [a great video](https://www.youtube.com/watch?v=S2xHZPH5Sng) about why clickbait is unreasonably effective and I've been dying to try it on a technical post. The irony is that the actual content is the opposite of clickbait -- every claim backed by a shell command, every number derived from first principles. If the title got you here, the data should keep you.
 
@@ -271,4 +271,7 @@ ROCBLAS_TENSILE_LIBPATH=./llama-rocm/rocblas/library \
 
 *Built with llama.cpp (commit 612db61 / 2026-02-10 for Vulkan, commit a0c91e8 / 2026-02-21 for ROCm via lemonade-sdk). Framework 13, Ubuntu 24.04, kernel 6.17.0.*
 
-*[Part 1: I benchmarked 8 local LLMs writing Go on my Framework 13 AMD Strix Point](benchmarking-local-llms-go-coding.md)*
+---
+
+*[Part 1: I benchmarked 8 local LLMs writing Go](benchmarking-local-llms-go-coding.md)  
+[Part 3: Gemma 4 vs Qwen3.5 — harder benchmark](local-llm-coding-harder-test.md)*

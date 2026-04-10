@@ -1,8 +1,6 @@
 # I benchmarked 8 local LLMs writing Go on my Framework 13 AMD Strix Point
 
-*February 2025 -- co-authored with Claude Opus 4.6 via [opencode](https://opencode.ai)*
-
-*Follow-up: [This is how SLOW Local LLMs Are On My Framework 13 AMD Strix Point](local-llm-performance-framework13.md)*
+*Part 1/3 — [Part 3](local-llm-coding-harder-test.md) ← [Part 2](local-llm-performance-framework13.md) ← **Part 1** (Feb 2025)*
 
 I have a Framework 13 with a Ryzen AI 370HX and a bunch of GGUF models accumulating in `~/.cache/llama.cpp/`. I wanted to know if any of them can actually write Go that compiles and runs. Not vibes, not leaderboard numbers -- `go build` says yes or no. Goal was to have some sense of where local models are in terms of practical capability, being limited in size and available ram/compute
 
@@ -170,6 +168,8 @@ The exam mode is the better test. Individual tasks with hints are too easy -- th
 - [bench.sh](bench.sh) -- individual tasks, one prompt per model per task
 - [exam.sh](exam.sh) -- exam mode, all three tasks in one prompt
 
-## Next episode
+## Follow-ups
 
-*[Local LLMs got better. So I made a harder test.](local-llm-coding-harder-test.md)* -- April 2026. Newer models (Qwen3.5, Gemma 4), a harder exam (modifying a real Go program), a quantization sweep, and proper infrastructure (llama-swap, Go exam driver).
+*[This is how SLOW Local LLMs Are On My Framework 13](local-llm-performance-framework13.md)* -- Feb 2026. Hardware deep-dive: why the numbers are what they are, ROCm vs Vulkan, memory bandwidth analysis, and speculative decoding.
+
+*[Gemma 4 vs Qwen3.5: harder benchmark](local-llm-coding-harder-test.md)* -- Apr 2026. Newer models (Qwen3.5, Gemma 4), a harder exam (modifying a real Go program), a quantization sweep, and proper infrastructure (llama-swap, Go exam driver).
