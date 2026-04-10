@@ -1,4 +1,4 @@
-# This is how SLOW Local LLMs Are On My Framework 13 AMD Strix Point
+# WHY Are Local LLMs So Slow On My Framework 13 AMD Strix Point
 
 *February 2026 -- co-authored with Claude Opus 4.6.
 
