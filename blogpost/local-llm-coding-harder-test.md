@@ -1,4 +1,4 @@
-# Local LLMs got better. So we made a harder test.
+# Gemma 4 vs Qwen3.5: benchmarking quantized local LLMs on Go coding
 
 *April 2026*[^1]
 
@@ -57,6 +57,18 @@ The harness auto-detects flag names from the binary's `-h` output, so it adapts 
 
 Bold = 14/15 on all three seeds. The 14–14 vs 9–14 spread is what matters here — it tells you which models are dependable vs. which ones roll dice.
 
+**Previously tested (dropped after first round):**
+
+| Model | Mean | Range | Notes |
+|-------|------|-------|-------|
+| DeepSeek-Coder-V2-Lite 16B Q8 | 10.3 | 9–13 | Legacy coder model, outclassed |
+| GLM-4.7-Flash 30B Q4_K_M | 10.0 | 9–12 | Dense 30B, too slow for the score |
+| gemma-3n-E4B Q8 | 8.0 | 5–10 | Previous gen Gemma, inconsistent |
+| GLM-4.7-Flash-REAP 23B Q4_K_M | 7.0 | 4–10 | MoE variant, worse than dense |
+| DeepSeek-R1-14B Q4_K_M | 5.0 | 5–5 | Reasoning model with `--reasoning off` — barely functional |
+
+These models consistently scored below the new contenders and were dropped from exam v2 and the quantization sweep. Qwen3-8B (the episode 1 champion at 4.7 GB) was superseded by Qwen3.5-9B — same family, newer weights.
+
 ### Exam v2: Resilience modification (/10)
 
 | Model | Mean | Compiles | Tok/s |
@@ -98,6 +110,8 @@ Identical across all three. Pick the smallest: MXFP4 at 15 GB.
 
 Q5_K_M has the best compile rate on the hard exam (2/3 vs 1/3) but wobbles on the easy one (9–14). More bits doesn't monotonically help. At 28 GB it still can't match Gemma 4's consistency.
 
+**We don't fully understand why Qwen3.5 is so flaky under quantization.** On paper it should be the stronger model — it leads on Terminal-Bench 2, SWE-bench, and TAU2 at full precision. But quantized and running locally, it compiles less often than Gemma 4 across every quant we tried. Our best guess: Qwen3.5's hybrid architecture (Gated DeltaNet + MoE with 256 tiny experts) may be more sensitive to weight precision loss than Gemma 4's 128-expert MoE. But we haven't proven that — it's speculation. If you know more about this, we'd like to hear it.
+
 ## What we got wrong and fixed
 
 **Context truncation.** With 8k context, models were writing correct code that got cut off mid-function. Looked like model quality problems. It was infrastructure. Bumped to 16k, half the compile failures disappeared.
@@ -138,4 +152,4 @@ Qwen3.5 looks stronger on paper (TAU2, SWE-bench). Gemma 4 edges it on Arena AI.
 ./sweep.sh
 ```
 
-All code: [exam_v1/](exam_v1/), [exam_v2/](exam_v2/), [sweep.sh](sweep.sh), [results/](results/).
+All code: [exam_v1/](exam_v1/), [exam_v2/](exam_v2/), [sweep.sh](sweep.sh). Results are local-only (regenerate with `./sweep.sh`).
