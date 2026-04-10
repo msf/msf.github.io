@@ -1,1 +1,4 @@
-results/
+results
+bench_results
+benchmarking_llms/artifacts/*
+!benchmarking_llms/artifacts/README.md

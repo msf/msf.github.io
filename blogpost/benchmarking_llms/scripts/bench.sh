@@ -6,6 +6,9 @@ set -euo pipefail
 # Override: LLAMA_CLI=/path/to/llama-cli MODEL_DIR=/path/to/models TIMEOUT=120 ./bench.sh
 # Filter:   MODEL_FILTER="Qwen3" ./bench.sh  (run only matching models)
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LAB_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 # --- CONFIG ---
 LLAMA_CLI="${LLAMA_CLI:-llama-completion}"
 MODEL_DIR="${MODEL_DIR:-$HOME/.cache/llama.cpp}"
@@ -14,10 +17,9 @@ CTX_SIZE="${CTX_SIZE:-4096}"
 N_PREDICT="${N_PREDICT:--2}"
 REASONING_BUDGET="${REASONING_BUDGET:--1}"
 TIMEOUT="${TIMEOUT:-60}"
-MODEL_FILTER="${MODEL_FILTER:-}"  # set to substring to run only matching models
-DRAFT_MAX="${DRAFT_MAX:-16}"      # speculative decoding tokens per step
-
-OUTDIR="$(pwd)/bench_results"
+MODEL_FILTER="${MODEL_FILTER:-}"
+DRAFT_MAX="${DRAFT_MAX:-16}"
+OUTDIR="${OUTDIR:-$LAB_ROOT/artifacts/legacy-runs/bench_results}"
 mkdir -p "$OUTDIR"
 
 # --- TEST INPUT FOR WORDFREQ ---
@@ -47,7 +49,6 @@ at the end of the day the dog the cat and the fox were friends
 TXTEOF
 fi
 
-# Generate expected wordfreq output
 EXPECTED_WORDFREQ="$OUTDIR/expected_wordfreq.txt"
 tr '[:upper:]' '[:lower:]' < "$TEST_INPUT" \
   | tr -cs '[:alpha:]' '\n' \
@@ -57,23 +58,15 @@ tr '[:upper:]' '[:lower:]' < "$TEST_INPUT" \
   | awk '{printf "%s: %d\n", $2, $1}' \
   > "$EXPECTED_WORDFREQ"
 
-# Generate expected filetree reference (sizes descending)
 EXPECTED_FILETREE="$OUTDIR/expected_filetree_sizes.txt"
 find "$MODEL_DIR" -type f ! -name '*mmproj*' -printf '%s\n' | sort -rn > "$EXPECTED_FILETREE"
 
-# --- 3 PROMPTS ---
 TASK_NAMES=("factorial" "wordfreq" "filetree")
 
 TASK_PROMPT_factorial='/no_think Output only Go code. A complete single-file Go program (package main) that calculates 10 factorial (10! = 10*9*8*7*6*5*4*3*2*1 = 3628800) and prints the result. Be minimal, no comments.'
-
 TASK_PROMPT_wordfreq='/no_think Output only Go code. A complete single-file Go program (package main) that reads stdin line by line, counts word frequencies case-insensitively, prints the top 10 most frequent words sorted by count descending, one per line as "word: count". Be minimal, no comments.'
-
 TASK_PROMPT_filetree='/no_think Output only Go code. A complete single-file Go program (package main) that takes a directory as its first command-line argument, recursively walks it, finds all regular files, sorts them by size descending, and prints each as "SIZE PATH" one per line. Be minimal, no comments.'
 
-# --- FUNCTIONS ---
-
-# Find a draft model for speculative decoding (same family, smallest available)
-# Returns the -hfrd compatible repo:quant string
 find_draft_model() {
   local model_name="$1"
   case "$model_name" in
@@ -90,7 +83,6 @@ extract_go_code() {
   local raw
   raw=$(cat "$raw_file")
 
-  # Strip think blocks, model tokens, end markers
   local code
   code=$(echo "$raw" \
     | sed '/<think>/,/<\/think>/d' \
@@ -99,7 +91,6 @@ extract_go_code() {
     | sed 's/package main/\npackage main/g' \
     | sed 's/^ *$//')
 
-  # Try fenced Go block first (allow leading whitespace on fences)
   local fenced
   fenced=$(echo "$code" | sed -n '/^ *```go/,/^ *```/{/^ *```/d;p}' | head -100) || true
   if [ -z "$fenced" ]; then
@@ -109,13 +100,11 @@ extract_go_code() {
   if [ -n "$fenced" ]; then
     echo "$fenced"
   else
-    # Grab from last exact "package main" line (not "package main)" in prose)
     local last_pkg
     last_pkg=$(echo "$code" | grep -n '^package main$' | tail -1 | cut -d: -f1) || true
     if [ -n "$last_pkg" ]; then
       code=$(echo "$code" | tail -n +"$last_pkg")
     else
-      # No package main found — prepend it if code starts with import/func
       local first_meaningful
       first_meaningful=$(echo "$code" | grep -m1 -nP '^\s*(import|func)' | cut -d: -f1) || true
       if [ -n "$first_meaningful" ]; then
@@ -152,12 +141,10 @@ run_and_verify() {
       if actual=$(timeout 5 "$bin" < "$TEST_INPUT" 2>&1); then
         run_ok="OK"
         echo "$actual" > "$outfile"
-        # Compare top 3 words (unambiguous counts)
         local top3_expected top3_actual
         top3_expected=$(head -3 "$EXPECTED_WORDFREQ" | grep -oP '^\S+' | sed 's/:$//' | sort)
         top3_actual=$(echo "$actual" | head -3 | grep -oP '^\S+' | sed 's/:$//' | sort) || true
         if [ "$top3_expected" = "$top3_actual" ]; then
-          # Check top 7 (all unambiguous)
           local top7_exp top7_act
           top7_exp=$(head -7 "$EXPECTED_WORDFREQ" | grep -oP '^\S+' | sed 's/:$//' | sort)
           top7_act=$(echo "$actual" | head -7 | grep -oP '^\S+' | sed 's/:$//' | sort) || true
@@ -175,11 +162,9 @@ run_and_verify() {
       if actual=$(timeout 10 "$bin" "$MODEL_DIR" 2>&1); then
         run_ok="OK"
         echo "$actual" > "$outfile"
-        # Check: output has lines, sizes are descending
         local nlines nfiles_expected
         nlines=$(echo "$actual" | wc -l)
         nfiles_expected=$(wc -l < "$EXPECTED_FILETREE")
-        # Extract sizes from output (first number on each line)
         local sizes_ok="yes"
         local prev=999999999999
         while read -r line; do
@@ -247,7 +232,6 @@ score_code() {
   echo "$score"
 }
 
-# --- DISCOVER MODELS ---
 MODELS=()
 while IFS= read -r f; do
   base=$(basename "$f")
@@ -274,19 +258,17 @@ done
 echo ""
 echo "Tasks: ${TASK_NAMES[*]}"
 echo "Timeout: ${TIMEOUT}s per task"
+echo "Outdir: $OUTDIR"
 echo ""
 
-# --- MAIN LOOP: per model, per task ---
 for model_path in "${MODELS[@]}"; do
   model_name=$(basename "$model_path" .gguf)
   short=$(echo "$model_name" | sed 's/.*GGUF_//')
   model_dir="$OUTDIR/$short"
   mkdir -p "$model_dir"
 
-  # Check for draft model (speculative decoding)
   draft_path=$(find_draft_model "$model_name")
   draft_args=()
-  cli="$LLAMA_CLI"
   if [ -n "$draft_path" ] && [ "$model_path" != "$draft_path" ]; then
     draft_args=(-hfrd "$draft_path")
     echo "============================================================"
@@ -299,7 +281,6 @@ for model_path in "${MODELS[@]}"; do
   fi
 
   for task in "${TASK_NAMES[@]}"; do
-    # Get prompt for this task
     prompt_var="TASK_PROMPT_${task}"
     prompt="${!prompt_var}"
 
@@ -311,7 +292,6 @@ for model_path in "${MODELS[@]}"; do
     gofile="$model_dir/${task}.go"
     output_file="$model_dir/${task}.output"
 
-    # Run model
     /usr/bin/time -v -o "$time_file" \
       timeout "$TIMEOUT" \
       "$LLAMA_CLI" \
@@ -328,14 +308,11 @@ for model_path in "${MODELS[@]}"; do
         --prompt "$prompt" \
         > "$raw_file" 2> "$stderr_file" || true
 
-    # Parse timings
     eval_tps="" eval_tokens="" wall_clock="" max_rss_mb=""
     parse_timings "$stderr_file" "$time_file"
 
-    # Extract code
     extract_go_code "$raw_file" > "$gofile"
 
-    # Build (auto-fix missing closing braces)
     build_ok="FAIL"
     if go build -o "$model_dir/${task}.bin" "$gofile" 2>"$model_dir/${task}.build.log"; then
       build_ok="OK"
@@ -347,7 +324,6 @@ for model_path in "${MODELS[@]}"; do
       fi
     fi
 
-    # Run + verify
     run_ok="FAIL"
     correct=""
     if [ "$build_ok" = "OK" ]; then
@@ -356,13 +332,11 @@ for model_path in "${MODELS[@]}"; do
       correct=$(echo "$result" | cut -d'|' -f2)
     fi
 
-    # Score
     score=$(score_code "$gofile" "$build_ok" "$run_ok" "$correct")
 
     echo "    Tok/s: ${eval_tps:-?}  Tokens: ${eval_tokens:-?}  Wall: ${wall_clock:-?}  RSS: ${max_rss_mb:-?}MB"
     echo "    Build: $build_ok  Run: $run_ok  Correct: ${correct:-N/A}  Score: $score/5"
 
-    # Save per-task metadata
     cat > "$model_dir/${task}.json" <<METAEOF
 {
   "model": "$short",
@@ -378,7 +352,6 @@ for model_path in "${MODELS[@]}"; do
 }
 METAEOF
 
-    # Show build errors briefly
     if [ "$build_ok" = "FAIL" ]; then
       head -3 "$model_dir/${task}.build.log" | sed 's/^/    > /'
     fi
@@ -386,14 +359,12 @@ METAEOF
   echo ""
 done
 
-# --- FINAL SUMMARY ---
 echo ""
 echo "======================================================================"
 echo "FINAL RESULTS"
 echo "======================================================================"
 echo ""
 
-# Per-task tables
 for task in "${TASK_NAMES[@]}"; do
   echo "--- $task ---"
   printf "%-35s %7s %6s %7s %5s %5s %7s %5s\n" "Model" "Tok/s" "Toks" "Wall" "Build" "Run" "Correct" "Score"
@@ -415,7 +386,6 @@ for task in "${TASK_NAMES[@]}"; do
   echo ""
 done
 
-# Overall ranking
 echo "--- OVERALL RANKING ---"
 printf "%-35s %7s %5s  %s\n" "Model" "AvgTk/s" "Total" "Tasks"
 printf "%-35s %7s %5s  %s\n" "-----" "-------" "-----" "-----"

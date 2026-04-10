@@ -33,12 +33,26 @@ var (
 	mockBin    = flag.String("mock-bin", "", "path to mock server binary")
 )
 
-// Tuned per detected scrape interval. Set in init-like fashion by buildArgs.
+// Tuned per detected scrape interval. Set by probeScraper (TestMain).
 var (
 	bufSize    = 10 // adjusted based on interval
 	offlineSec = 15 // seconds offline to overflow buffer
 	fastMode   = false
 )
+
+// TestMain runs before any test. Probes the scraper's -h output so package-level
+// globals (bufSize, offlineSec, fastMode) are correct BEFORE tests read them.
+// BUG 1 fix: previously tests did `bs := bufSize` before the first
+// startHarness call, capturing the initial default (10) instead of the
+// interval-tuned value (50). All subsequent comparisons used the stale value.
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if *scraperBin != "" {
+		// Calling buildArgs with dummy port has the side effect of setting globals.
+		_ = buildArgs("0", 10)
+	}
+	os.Exit(m.Run())
+}
 
 type harness struct {
 	t       *testing.T
@@ -228,6 +242,20 @@ func (h *harness) metrics() []mockMetric {
 	return m
 }
 
+// scrapeN returns how many /measurements.xml requests the mock has served.
+// Used to snapshot phase boundaries so the harness can distinguish buffered
+// metrics (scrape_n <= boundary_at_reconnect) from post-reconnect live metrics.
+func (h *harness) scrapeN() int {
+	resp, err := http.Get(h.base + "/control/scrape_n")
+	if err != nil {
+		return 0
+	}
+	defer resp.Body.Close()
+	var r struct{ ScrapeN int `json:"scrape_n"` }
+	json.NewDecoder(resp.Body).Decode(&r)
+	return r.ScrapeN
+}
+
 func poll(timeout time.Duration, cond func() bool) bool {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
@@ -280,28 +308,64 @@ func TestScenario(t *testing.T) {
 		}
 	})
 
-	// Phase 3: reconnect — verify flush
+	// Phase 3: reconnect — verify flush.
+	// BUG 2 fix: the test cannot perfectly distinguish "metrics that came out
+	// of the buffer" from "metrics scraped live after reconnect" because both
+	// arrive at the same sink. The previous version waited 1s of grace, which
+	// at 10ms scrape interval adds 100 live scrapes on top of a bufSize=50
+	// buffer, blowing the bound unfairly. Fix: reset count at reconnect, wait
+	// only a short window (~300ms) for the buffer flush burst to complete,
+	// then snapshot. Live scrapes during 300ms add at most ~30 at 10ms interval,
+	// well within the bufSize+60 tolerance. At 1s interval (slow mode) only ~0-1
+	// live scrapes land in that window.
+	h.post("/control/reset")
+	boundary := h.scrapeN() // every scrape so far predates reconnect
 	h.post("/control/online")
 
-	if !poll(15*time.Second, func() bool { return h.count() >= bs }) {
-		t.Logf("phase3: only %d metrics flushed (wanted >= %d)", h.count(), bs)
-	}
-	time.Sleep(1 * time.Second)
-
-	flushed := h.count()
+	// Wait up to 5s for buffer to flush. Covers the 1s default flush interval
+	// and some headroom for batched flushes. Scrapers with flush interval > 5s
+	// will fail this test (intentional: flushes should be prompt).
+	time.Sleep(5 * time.Second)
+	total := h.count()
 	flushedMetrics := h.metrics()
-	t.Logf("phase3: %d metrics flushed, %d in dump", flushed, len(flushedMetrics))
+
+	// BUG 2 fix: the mock tags each scrape with a monotonically increasing
+	// OwnConsumedPower field (100 * scrape_n). A metric with field value <=
+	// 100*boundary was scraped BEFORE reconnect, so it could only reach the
+	// sink via the buffer. Values > 100*boundary are post-reconnect live
+	// scrapes. This cleanly separates "buffered" from "online" without
+	// timing heuristics.
+	boundaryPower := float64(boundary) * 100.0
+	bufferedCount := 0
+	liveCount := 0
+	for _, m := range flushedMetrics {
+		if p, ok := m.Fields["OwnConsumedPower_W"]; ok {
+			if p <= boundaryPower {
+				bufferedCount++
+			} else {
+				liveCount++
+			}
+		}
+	}
+	t.Logf("phase3: total=%d (buffered=%d, live=%d), boundary_scrape_n=%d",
+		total, bufferedCount, liveCount, boundary)
 
 	t.Run("FlushOnReconnect", func(t *testing.T) {
-		if flushed < bufSize {
-			t.Fatalf("expected >= %d, got %d", bufSize, flushed)
+		// Fewer than bufSize-2 buffered metrics flushing means the buffer didn't
+		// drain. -2 tolerance allows for eviction timing edge cases.
+		min := bufSize - 2
+		if bufferedCount < min {
+			t.Fatalf("expected >= %d buffered flushed, got %d", min, bufferedCount)
 		}
 	})
 
 	t.Run("BufferBounded", func(t *testing.T) {
-		max := bufSize + 10
-		if flushed > max {
-			t.Fatalf("not bounded: got %d, expected <= %d", flushed, max)
+		// The buffer must not have exceeded its configured cap. bufSize+5
+		// tolerance covers off-by-one and race-window edge cases. An unbounded
+		// buffer implementation would flush hundreds of pre-boundary scrapes.
+		max := bufSize + 5
+		if bufferedCount > max {
+			t.Fatalf("not bounded: got %d buffered, expected <= %d", bufferedCount, max)
 		}
 	})
 
@@ -374,13 +438,31 @@ func TestMultipleOutageCycles(t *testing.T) {
 // --- Edge cases ---
 
 func TestBufferSizeZero(t *testing.T) {
+	// BUG 3 fix: accept both "buffer-size=0 runs without buffering" AND
+	// "buffer-size=0 exits cleanly with a non-zero code within ~1s" as valid.
+	// Prior test only checked h.alive() which penalized implementations that
+	// defensively validate input and exit rather than risk rand.Intn(0) panics.
 	h := startHarness(t, 0)
 	h.post("/control/online")
 	time.Sleep(500 * time.Millisecond)
+
+	select {
+	case err := <-h.exited:
+		// Exited within 500ms of starting — treat as valid rejection of bad input.
+		// Accept any exit, including panic, because a panic at startup on invalid
+		// flag is an arguably-acceptable behavior for a CLI tool.
+		// Mark scraper=nil so Cleanup doesn't try to kill it.
+		h.scraper = nil
+		t.Logf("scraper exited quickly with buffer-size=0 (err=%v) — OK (validated input)", err)
+		return
+	default:
+	}
+
+	// Still running — verify it survives an outage without panicking.
 	h.post("/control/offline")
 	time.Sleep(3 * time.Second)
 	if !h.alive() {
-		t.Fatal("crashed with buffer-size=0")
+		t.Fatal("crashed mid-run with buffer-size=0 (neither rejected input nor survived)")
 	}
 }
 
@@ -406,14 +488,15 @@ func TestRaceDetector(t *testing.T) {
 	if *scraperBin == "" {
 		t.Skip("no scraper-bin")
 	}
-	// Find the source file next to the binary
-	binDir := *scraperBin
-	for !strings.HasSuffix(binDir, "/build") && binDir != "/" {
-		binDir = binDir[:strings.LastIndex(binDir, "/")]
-	}
+	// Find the source file next to the binary. eval.sh writes it to
+	// <workdir>/build/scraper.go alongside the binary.
+	binPath := *scraperBin
+	binDir := binPath[:strings.LastIndex(binPath, "/")]
 	srcFile := binDir + "/scraper.go"
 	if _, err := os.Stat(srcFile); err != nil {
-		t.Skipf("can't find source at %s: %v", srcFile, err)
+		// BUG 4 fix: treat as failure not skip. Skips count in max but not score,
+		// silently penalizing models. Surface the path problem explicitly.
+		t.Fatalf("race harness can't find source at %s: %v (binDir=%s, scraperBin=%s)", srcFile, err, binDir, *scraperBin)
 	}
 
 	// Build with -race
@@ -427,7 +510,10 @@ func TestRaceDetector(t *testing.T) {
 	buildCmd := exec.Command("go", "build", "-race", "-o", raceBin, ".")
 	buildCmd.Dir = raceDir
 	if out, err := buildCmd.CombinedOutput(); err != nil {
-		t.Skipf("race build failed: %v\n%s", err, out)
+		// BUG 5 fix: race build failures are scraper bugs (e.g. concurrent
+		// map writes caught by -race linker), not infra issues. Report as
+		// FAIL so they count against the score.
+		t.Fatalf("race build failed: %v\n%s", err, out)
 	}
 
 	// Run quick scenario with race binary
@@ -463,7 +549,7 @@ func TestRaceDetector(t *testing.T) {
 	exited := make(chan error, 1)
 	go func() { exited <- scraper.Wait() }()
 	t.Cleanup(func() {
-		if scraper.Process != nil {
+		if scraper != nil && scraper.Process != nil {
 			scraper.Process.Kill()
 			scraper.Wait()
 		}

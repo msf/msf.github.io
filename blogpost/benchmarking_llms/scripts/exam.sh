@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Exam mode: all 3 programs in a single prompt, single timeout
+# Exam mode: all 3 programs in a single prompt, single timeout.
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LAB_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 LLAMA_CLI="${LLAMA_CLI:-llama-completion}"
 MODEL_DIR="${MODEL_DIR:-$HOME/.cache/llama.cpp}"
 MODEL_DIR="$(readlink -f "$MODEL_DIR")"
@@ -11,11 +15,9 @@ REASONING_BUDGET="${REASONING_BUDGET:--1}"
 TIMEOUT="${TIMEOUT:-300}"
 MODEL_FILTER="${MODEL_FILTER:-}"
 DRAFT_MAX="${DRAFT_MAX:-16}"
-
-OUTDIR="$(pwd)/bench_results"
+OUTDIR="${OUTDIR:-$LAB_ROOT/artifacts/legacy-runs/exam_results}"
 mkdir -p "$OUTDIR"
 
-# --- TEST INPUT ---
 TEST_INPUT="$OUTDIR/test_input.txt"
 if [ ! -f "$TEST_INPUT" ]; then
   cat > "$TEST_INPUT" <<'TXTEOF'
@@ -42,7 +44,6 @@ at the end of the day the dog the cat and the fox were friends
 TXTEOF
 fi
 
-# Generate expected wordfreq
 EXPECTED_WORDFREQ="$OUTDIR/expected_wordfreq.txt"
 tr '[:upper:]' '[:lower:]' < "$TEST_INPUT" \
   | tr -cs '[:alpha:]' '\n' \
@@ -52,11 +53,9 @@ tr '[:upper:]' '[:lower:]' < "$TEST_INPUT" \
   | awk '{printf "%s: %d\n", $2, $1}' \
   > "$EXPECTED_WORDFREQ"
 
-# Expected filetree sizes
 EXPECTED_FILETREE="$OUTDIR/expected_filetree_sizes.txt"
 find "$MODEL_DIR" -type f ! -name '*mmproj*' -printf '%s\n' | sort -rn > "$EXPECTED_FILETREE"
 
-# --- THE EXAM PROMPT ---
 read -r -d '' EXAM_PROMPT <<'PROMPTEOF' || true
 /no_think You are taking a timed coding exam. Write three complete, compilable Go programs. Each must be a standalone single-file program with package main and func main.
 
@@ -76,7 +75,6 @@ The three programs:
 Be minimal, no comments, no explanation. Just the three files with their markers.
 PROMPTEOF
 
-# Find a draft model for speculative decoding (same family, smallest available)
 find_draft_model() {
   local model_name="$1"
   case "$model_name" in
@@ -93,7 +91,6 @@ find_draft_model() {
   esac
 }
 
-# --- DISCOVER MODELS ---
 MODELS=()
 while IFS= read -r f; do
   base=$(basename "$f")
@@ -115,43 +112,34 @@ fi
 echo "=== EXAM MODE ==="
 echo "Models: ${#MODELS[@]}"
 echo "Timeout: ${TIMEOUT}s (single prompt, 3 programs)"
+echo "Outdir: $OUTDIR"
 echo ""
 
-# --- EXTRACT FILES FROM MARKERS ---
 extract_exam_files() {
   local raw_file="$1"
   local out_dir="$2"
 
-  # Clean raw output: strip think blocks, model tokens, and analysis preamble
   local clean
   clean=$(cat "$raw_file" \
     | sed '/<think>/,/<\/think>/d' \
     | sed 's/<|[^>]*|>//g' \
     | sed 's/\[end of text\]//g')
 
-  # If markers appear multiple times (e.g. gpt-oss analysis + final), keep only from last #START factorial.go#
   local last_start
   last_start=$(echo "$clean" | grep -n '#START factorial.go#' | tail -1 | cut -d: -f1) || true
   if [ -n "$last_start" ] && [ "$last_start" -gt 1 ]; then
     clean=$(echo "$clean" | tail -n +"$last_start")
   fi
 
-  # Extract each file between #START name# and #END name#
   for fname in factorial.go wordfreq.go filetreewalk.go; do
     local content
     content=$(echo "$clean" | sed -n "/#START ${fname}#/,/#END ${fname}#/{/#START/d;/#END/d;p}") || true
-
-    # Fallback: try without the trailing # (some models might format differently)
     if [ -z "$content" ]; then
       content=$(echo "$clean" | sed -n "/#START ${fname}/,/#END ${fname}/{/#START/d;/#END/d;p}") || true
     fi
-
-    # Fallback: try with spaces around filename
     if [ -z "$content" ]; then
       content=$(echo "$clean" | sed -n "/#START *${fname} *#/,/#END *${fname} *#/{/#START/d;/#END/d;p}") || true
     fi
-
-    # Strip any code fences that might be inside
     content=$(echo "$content" | sed '/^```/d')
 
     if [ -n "$content" ]; then
@@ -164,14 +152,12 @@ extract_exam_files() {
   done
 }
 
-# --- RUN EACH MODEL ---
 for model_path in "${MODELS[@]}"; do
   model_name=$(basename "$model_path" .gguf)
   short=$(echo "$model_name" | sed 's/.*GGUF_//')
   exam_dir="$OUTDIR/$short/exam"
   mkdir -p "$exam_dir"
 
-  # Check for draft model (speculative decoding)
   draft_path=$(find_draft_model "$model_name")
   draft_args=()
   if [ -n "$draft_path" ] && [ "$model_path" != "$draft_path" ]; then
@@ -189,7 +175,6 @@ for model_path in "${MODELS[@]}"; do
   stderr_file="$exam_dir/exam.stderr"
   time_file="$exam_dir/exam.time"
 
-  # Run model
   /usr/bin/time -v -o "$time_file" \
     timeout "$TIMEOUT" \
     "$LLAMA_CLI" \
@@ -206,7 +191,6 @@ for model_path in "${MODELS[@]}"; do
       --prompt "$EXAM_PROMPT" \
       > "$raw_file" 2> "$stderr_file" || true
 
-  # Parse timings
   eval_tps=$(grep -oP '[\d.]+(?=\s*tokens per second)' "$stderr_file" | tail -1 || true)
   eval_tokens=$(grep -oP 'eval time\s*=.*?/\s*\K\d+(?=\s*tokens)' "$stderr_file" | tail -1 || true)
   wall_clock=$(grep 'Elapsed (wall clock)' "$time_file" | grep -oP '[\d:.]+$' || true)
@@ -216,10 +200,8 @@ for model_path in "${MODELS[@]}"; do
 
   echo "  Tok/s: ${eval_tps:-?}  Tokens: ${eval_tokens:-?}  Wall: ${wall_clock:-?}  RSS: ${max_rss_mb:-?}MB"
 
-  # Extract the 3 files
   extract_exam_files "$raw_file" "$exam_dir"
 
-  # Build, run, verify each
   total_score=0
   for prog in factorial.go wordfreq.go filetreewalk.go; do
     gofile="$exam_dir/$prog"
@@ -234,7 +216,6 @@ for model_path in "${MODELS[@]}"; do
       continue
     fi
 
-    # Build (with auto-fix for missing closing brace)
     if go build -o "$exam_dir/${base}.bin" "$gofile" 2>"$exam_dir/${base}.build.log"; then
       build_ok="OK"
     elif grep -q 'expected }' "$exam_dir/${base}.build.log"; then
@@ -251,7 +232,6 @@ for model_path in "${MODELS[@]}"; do
     fi
     score=$((score + 1))
 
-    # Run + verify
     case "$base" in
       factorial)
         if actual=$(timeout 5 "$exam_dir/${base}.bin" 2>&1); then
@@ -299,7 +279,6 @@ for model_path in "${MODELS[@]}"; do
         ;;
     esac
 
-    # Error handling bonus
     if [ "$build_ok" = "OK" ]; then
       has_err=$(grep -c 'if err\|log.Fatal\|scanner.Err' "$gofile" || true)
       lines=$(wc -l < "$gofile")
@@ -315,7 +294,6 @@ for model_path in "${MODELS[@]}"; do
   echo ""
   echo "  EXAM TOTAL: $total_score/15 (weighted: $((total_score * 5))/75)"
 
-  # Save metadata
   cat > "$exam_dir/exam.json" <<METAEOF
 {
   "model": "$short",
@@ -331,7 +309,6 @@ METAEOF
   echo ""
 done
 
-# --- SUMMARY ---
 echo "======================================================================"
 echo "EXAM RESULTS"
 echo "======================================================================"

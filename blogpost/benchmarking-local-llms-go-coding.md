@@ -108,14 +108,14 @@ DeepSeek-R1-Distill-14B                ?   60.0s    FAIL: yes, still thinking
 The script auto-discovers all `.gguf` models in your cache:
 
 ```bash
-LLAMA_CLI=/path/to/llama-cli ./bench.sh            # all models
-MODEL_FILTER="Qwen3" ./bench.sh                     # one model
-TIMEOUT=120 MODEL_DIR=/my/models ./bench.sh         # tweak
+LLAMA_CLI=/path/to/llama-cli ./benchmarking_llms/scripts/bench.sh            # all models
+MODEL_FILTER="Qwen3" ./benchmarking_llms/scripts/bench.sh                     # one model
+TIMEOUT=120 MODEL_DIR=/my/models ./benchmarking_llms/scripts/bench.sh         # tweak
 ```
 
-Raw outputs, Go source, and scoring metadata end up in `bench_results/<model>/<task>.*`.
+Historical raw outputs are preserved under `benchmarking_llms/artifacts/history/play-bench_results/`. New ad-hoc runs from these legacy scripts default to `benchmarking_llms/artifacts/legacy-runs/`.
 
-Scripts: [bench.sh](bench.sh) and [exam.sh](exam.sh) (co-located with this post)
+Scripts: [bench.sh](benchmarking_llms/scripts/bench.sh) and [exam.sh](benchmarking_llms/scripts/exam.sh)
 
 ## What's next
 
@@ -165,8 +165,8 @@ The exam mode is the better test. Individual tasks with hints are too easy -- th
 
 ## Scripts
 
-- [bench.sh](bench.sh) -- individual tasks, one prompt per model per task
-- [exam.sh](exam.sh) -- exam mode, all three tasks in one prompt
+- [bench.sh](benchmarking_llms/scripts/bench.sh) -- individual tasks, one prompt per model per task
+- [exam.sh](benchmarking_llms/scripts/exam.sh) -- exam mode, all three tasks in one prompt
 
 ## Follow-ups
 

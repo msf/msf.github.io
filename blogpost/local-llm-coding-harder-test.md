@@ -20,7 +20,7 @@ Same hardware: Framework 13, Ryzen AI 370HX, Radeon 890M iGPU, 64 GB DDR5, Vulka
 
 The first exam_v2 evaluator used grep. It checked whether the code contained `sync.Mutex`, `rand.Intn`, `go func`. Models scored 15–18/20. That was broken — a model can write `sync.Mutex` and still have three data races.
 
-We replaced it with Go integration tests. The [harness](exam_v2/harness/harness_test.go) compiles the model's code into a binary, runs it against a [mock server](exam_v2/mock/main.go) with controllable online/offline state, and executes 10 tests:
+We replaced it with Go integration tests. The [harness](benchmarking_llms/bench/exam_v2/harness/harness_test.go) compiles the model's code into a binary, runs it against a [mock server](benchmarking_llms/bench/exam_v2/mock/main.go) with controllable online/offline state, and executes 10 tests:
 
 | Test | What it checks |
 |------|----------------|
@@ -149,7 +149,7 @@ Qwen3.5 looks stronger on paper (TAU2, SWE-bench). Gemma 4 edges it on Arena AI.
 ## Reproduce it
 
 ```bash
-./sweep.sh
+./benchmarking_llms/scripts/sweep.sh
 ```
 
-All code: [exam_v1/](exam_v1/), [exam_v2/](exam_v2/), [sweep.sh](sweep.sh). Results are local-only (regenerate with `./sweep.sh`).
+All code: [exam_v1/](benchmarking_llms/bench/exam_v1/), [exam_v2/](benchmarking_llms/bench/exam_v2/), [sweep.sh](benchmarking_llms/scripts/sweep.sh). Results are local-only (regenerate with `./benchmarking_llms/scripts/sweep.sh`).

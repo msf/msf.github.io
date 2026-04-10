@@ -47,6 +47,9 @@ extract_code() {
   fi
 
   if [ -n "$content" ] && echo "$content" | grep -q 'package main'; then
+    # BUG 6 fix: models sometimes emit exam_v1-style #START/#END markers inside
+    # the ```go fence. Strip them so they don't break Go compilation.
+    content=$(echo "$content" | grep -vE '^#(START|END) ')
     echo "$content" > "$out"
     echo "  extracted $(echo "$content" | wc -l) lines" >&2
   else
@@ -82,9 +85,20 @@ echo "  compile: OK" >&2
 HARNESS_DIR="$SCRIPT_DIR/harness"
 SCRAPER_BIN="$(realpath "$build_dir/scraper")"
 
-test_output=$(cd "$HARNESS_DIR" && go test -v -count=1 -timeout 600s . \
-  -scraper-bin "$SCRAPER_BIN" \
-  -mock-bin "$(realpath "$MOCK_BIN")" 2>&1) || true
+run_harness() {
+  cd "$HARNESS_DIR" && go test -v -count=1 -timeout 600s . \
+    -scraper-bin "$SCRAPER_BIN" \
+    -mock-bin "$(realpath "$MOCK_BIN")" 2>&1
+}
+
+# Run up to twice if the first attempt produces no PASS/FAIL lines (harness
+# flake, usually timing-sensitive test interactions).
+test_output=$(run_harness) || true
+if ! echo "$test_output" | grep -qE '\-\-\- (PASS|FAIL|SKIP):'; then
+  echo "  retry: first harness run produced no results, retrying once" >&2
+  sleep 2
+  test_output=$(run_harness) || true
+fi
 
 # --- C. Parse test results ---
 # Count PASS/FAIL for each test (including subtests)
@@ -93,8 +107,13 @@ fail=0
 skip=0
 summary=""
 
+# Count tests. Exclude the TestScenario parent (it's an aggregate over its
+# subtests; counting both parent and subtests would double-count).
+# Its subtests TestScenario/OnlineFlow etc. are what we actually score.
 while IFS= read -r line; do
   case "$line" in
+    *"--- PASS: TestScenario "*) continue ;;
+    *"--- FAIL: TestScenario "*) continue ;;
     *"--- PASS:"*) pass=$((pass + 1)) ;;
     *"--- FAIL:"*) fail=$((fail + 1)) ;;
     *"--- SKIP:"*) skip=$((skip + 1)) ;;
@@ -102,16 +121,33 @@ while IFS= read -r line; do
 done <<< "$test_output"
 
 total=$((pass + fail + skip))
-echo "  tests: $pass pass, $fail fail, $skip skip (of $total)" >&2
+echo "  tests: $pass pass, $fail fail, $skip skip (of $total observed; max=10)" >&2
 
-# Build summary from test names
+# BUG 7 fix: when go test returns zero PASS/FAIL/SKIP lines the harness broke
+# (test binary crashed, wrong cwd, etc). Emit a distinct eval:FAIL status
+# instead of a misleading 0/0.
+if [ "$total" -eq 0 ]; then
+  echo "  HARNESS FAILURE: no test results parsed" >&2
+  echo "$test_output" | tail -20 >&2
+  echo '{"score":0,"max":10,"summary":"eval:HARNESS_FAIL"}'
+  exit 0
+fi
+
+# Fixed denominator: 10 tests total in the suite. If fewer were observed
+# (scraper crashed mid-suite, Go test binary died), count unrun tests as FAIL.
+# This prevents early-crash scrapers from looking better via truncated max.
+MAX=10
+
+# Build summary from test names (skip the TestScenario parent aggregate)
 test_results=""
 while IFS= read -r line; do
   if echo "$line" | grep -qE '\-\-\- (PASS|FAIL|SKIP):'; then
     name=$(echo "$line" | sed 's/.*--- [A-Z]*: //' | sed 's/ (.*//')
+    # Skip the parent aggregate line
+    if [ "$name" = "TestScenario" ]; then continue; fi
     status=$(echo "$line" | grep -oE '(PASS|FAIL|SKIP)' | head -1)
     test_results="$test_results $name:$status"
   fi
 done <<< "$test_output"
 
-echo "{\"score\":$pass,\"max\":$total,\"summary\":\"${test_results# }\"}"
+echo "{\"score\":$pass,\"max\":$MAX,\"summary\":\"${test_results# }\",\"observed\":$total}"

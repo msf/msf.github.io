@@ -1,21 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 #
-# Multi-seed sweep. For each model: run ALL exams × ALL seeds before switching.
-# Model stays loaded → warm KV cache, no redundant swaps.
+# Historical multi-seed sweep for exam_v1 + exam_v2.
+# For each model: run all exams × all seeds before switching.
 #
-# Layout: results/{exam}/{model}/seed{N}/
+# Current canonical layout:
+#   bench/                prompts + evaluators
+#   artifacts/results/    sweep outputs
+#   exam-driver.go        llama-swap driver
 #
-# Usage: ./sweep.sh [model-filter]   # regex filter on display name, empty = all
+# Usage: ./sweep.sh [model-filter]
+# Notes:
+# - This script preserves the historical display names used in the published
+#   results directories.
+# - Verify your local llama-swap config still defines the mapped swap keys
+#   before re-running old comparisons.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ENDPOINT="http://localhost:8080"
-TIMEOUT="10m"
+LAB_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+BENCH_DIR="$LAB_ROOT/bench"
+RESULTS_DIR="${RESULTS_DIR:-$LAB_ROOT/artifacts/results}"
+DRIVER="${DRIVER:-$LAB_ROOT/exam-driver.go}"
+ENDPOINT="${ENDPOINT:-http://localhost:8080}"
+TIMEOUT="${TIMEOUT:-10m}"
 SEEDS=(42 123 456)
 EXAMS=(exam_v1 exam_v2)
 FILTER="${1:-}"
 
-# Display name → llama-swap model name
+# Display name -> llama-swap model key.
 declare -A SWAP_NAME=(
   [qwen35-35b-q4km]="qwen35-35b"
   [qwen35-35b-q5km]="qwen35-35b-q5km"
@@ -30,7 +42,6 @@ declare -A SWAP_NAME=(
   [gemma4-e4b-q8]="gemma4-e4b"
 )
 
-# Priority order
 MODEL_ORDER=(
   qwen35-35b-q5km
   gemma4-26b-q5km
@@ -45,9 +56,15 @@ MODEL_ORDER=(
   gemma4-e4b-q8
 )
 
+unload_all() {
+  curl -fsS -X POST "$ENDPOINT/api/models/unload" > /dev/null 2>&1 && return 0
+  curl -fsS -X POST "$ENDPOINT/models/unload" > /dev/null 2>&1 && return 0
+  return 1
+}
+
 run_one() {
   local exam="$1" display="$2" swap="$3" seed="$4"
-  local outdir="$SCRIPT_DIR/results/${exam}/${display}/seed${seed}"
+  local outdir="$RESULTS_DIR/${exam}/${display}/seed${seed}"
   mkdir -p "$outdir"
 
   if [ -f "$outdir/result.json" ]; then
@@ -59,10 +76,10 @@ run_one() {
 
   local tmpout
   tmpout=$(mktemp -d)
-  go run /home/miguel/play/llama/exam-driver.go \
+  go run "$DRIVER" \
     -endpoint "$ENDPOINT" \
-    -prompt "$SCRIPT_DIR/${exam}/prompt.txt" \
-    -eval "$SCRIPT_DIR/${exam}/eval.sh" \
+    -prompt "$BENCH_DIR/${exam}/prompt.txt" \
+    -eval "$BENCH_DIR/${exam}/eval.sh" \
     -out "$tmpout" \
     -timeout "$TIMEOUT" \
     -seed "$seed" \
@@ -74,7 +91,12 @@ run_one() {
   rm -rf "$tmpout"
 }
 
-if ! curl -s "$ENDPOINT/health" > /dev/null 2>&1; then
+if [ ! -f "$DRIVER" ]; then
+  echo "ERROR: exam driver not found: $DRIVER" >&2
+  exit 1
+fi
+
+if ! curl -fsS "$ENDPOINT/health" > /dev/null 2>&1; then
   echo "ERROR: llama-swap not responding at $ENDPOINT" >&2
   exit 1
 fi
@@ -92,8 +114,7 @@ for display in "${MODEL_ORDER[@]}"; do
     done
   done
 
-  # Unload after this model is fully done
-  curl -s "$ENDPOINT/models/unload" -X POST > /dev/null 2>&1
+  unload_all || true
   sleep 1
 done
 
