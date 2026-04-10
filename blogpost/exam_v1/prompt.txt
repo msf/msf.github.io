@@ -1,0 +1,16 @@
+You are taking a timed coding exam. Write three complete, compilable Go programs. Each must be a standalone single-file program with package main and func main.
+
+Output each file wrapped in markers exactly like this:
+#START filename.go#
+...go code...
+#END filename.go#
+
+The three programs:
+
+1. factorial.go -- Computes 10! (ten factorial) and prints the result to stdout.
+
+2. wordfreq.go -- Reads stdin line by line, counts word frequencies case-insensitively, prints the top 10 most frequent words sorted by count descending, one per line as "word: count".
+
+3. filetreewalk.go -- Takes a directory path as its first command-line argument, recursively walks it, finds all regular files, sorts them by size descending, prints each as "SIZE PATH" one per line.
+
+Be minimal, no comments, no explanation. Just the three files with their markers.

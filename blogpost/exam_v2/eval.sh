@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+set -euo pipefail
+#
+# exam_v2 evaluator: extract code, compile, run Go integration test harness.
+#
+# Protocol:
+#   eval.sh <response-file> <work-dir>
+#   stdout: {"score":N, "max":M, "summary":"..."}
+#   stderr: progress/debug
+#
+# Tests: TestScenario (5 subtests), TestMultipleOutageCycles,
+#        TestBufferSizeZero, TestBufferSizeOne, TestGracefulShutdown, TestRaceDetector
+
+RESPONSE_FILE="$(realpath "$1")"
+WORK_DIR="$(realpath "$2")"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# --- Build mock server if needed ---
+MOCK_BIN="$SCRIPT_DIR/mock/mockserver"
+if [ ! -x "$MOCK_BIN" ] || [ "$SCRIPT_DIR/mock/main.go" -nt "$MOCK_BIN" ]; then
+  echo "  building mock server..." >&2
+  go build -o "$MOCK_BIN" "$SCRIPT_DIR/mock/main.go"
+fi
+
+# --- Extract code from response ---
+extract_code() {
+  local raw="$1" out="$2"
+  local content
+
+  # Strategy 1: last ```go block
+  content=$(awk '
+    /^```go/ { capture=1; block=""; next }
+    /^```/ && capture { capture=0; last=block; next }
+    capture { block = block (block ? "\n" : "") $0 }
+    END { print last }
+  ' "$raw")
+
+  # Strategy 2: last package main to last }
+  if [ -z "$content" ] || ! echo "$content" | grep -q 'package main'; then
+    local pkg_line last_brace
+    pkg_line=$(grep -n '^package main' "$raw" | tail -1 | cut -d: -f1) || true
+    if [ -n "$pkg_line" ]; then
+      content=$(tail -n +"$pkg_line" "$raw")
+      last_brace=$(echo "$content" | grep -n '^}$' | tail -1 | cut -d: -f1) || true
+      [ -n "$last_brace" ] && content=$(echo "$content" | head -n "$last_brace")
+    fi
+  fi
+
+  if [ -n "$content" ] && echo "$content" | grep -q 'package main'; then
+    echo "$content" > "$out"
+    echo "  extracted $(echo "$content" | wc -l) lines" >&2
+  else
+    echo "" > "$out"
+    echo "  EXTRACTION FAILED" >&2
+  fi
+}
+
+# --- A. Extract and compile ---
+gofile="$WORK_DIR/scraper.go"
+extract_code "$RESPONSE_FILE" "$gofile"
+
+if [ ! -s "$gofile" ]; then
+  echo '{"score":0,"max":10,"summary":"extraction:FAIL"}'
+  exit 0
+fi
+
+build_dir="$WORK_DIR/build"
+mkdir -p "$build_dir"
+cp "$gofile" "$build_dir/scraper.go"
+echo 'module exam' > "$build_dir/go.mod"
+echo 'go 1.23' >> "$build_dir/go.mod"
+
+if ! (cd "$build_dir" && go build -o scraper . 2>"$WORK_DIR/build.log"); then
+  echo "  compile: FAIL" >&2
+  cat "$WORK_DIR/build.log" >&2
+  echo '{"score":0,"max":10,"summary":"compile:FAIL"}'
+  exit 0
+fi
+echo "  compile: OK" >&2
+
+# --- B. Run integration test harness ---
+HARNESS_DIR="$SCRIPT_DIR/harness"
+SCRAPER_BIN="$(realpath "$build_dir/scraper")"
+
+test_output=$(cd "$HARNESS_DIR" && go test -v -count=1 -timeout 600s . \
+  -scraper-bin "$SCRAPER_BIN" \
+  -mock-bin "$(realpath "$MOCK_BIN")" 2>&1) || true
+
+# --- C. Parse test results ---
+# Count PASS/FAIL for each test (including subtests)
+pass=0
+fail=0
+skip=0
+summary=""
+
+while IFS= read -r line; do
+  case "$line" in
+    *"--- PASS:"*) pass=$((pass + 1)) ;;
+    *"--- FAIL:"*) fail=$((fail + 1)) ;;
+    *"--- SKIP:"*) skip=$((skip + 1)) ;;
+  esac
+done <<< "$test_output"
+
+total=$((pass + fail + skip))
+echo "  tests: $pass pass, $fail fail, $skip skip (of $total)" >&2
+
+# Build summary from test names
+test_results=""
+while IFS= read -r line; do
+  if echo "$line" | grep -qE '\-\-\- (PASS|FAIL|SKIP):'; then
+    name=$(echo "$line" | sed 's/.*--- [A-Z]*: //' | sed 's/ (.*//')
+    status=$(echo "$line" | grep -oE '(PASS|FAIL|SKIP)' | head -1)
+    test_results="$test_results $name:$status"
+  fi
+done <<< "$test_output"
+
+echo "{\"score\":$pass,\"max\":$total,\"summary\":\"${test_results# }\"}"
