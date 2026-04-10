@@ -1,0 +1,120 @@
+#START factorial.go#
+package main
+
+import "fmt"
+
+func main() {
+	n := 10
+	f := 1
+	for i := 2; i <= n; i++ {
+		f *= i
+	}
+	fmt.Println(f)
+}
+#END factorial.go#
+
+#START wordfreq.go#
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+)
+
+type WordCount struct {
+	Word  string
+	Count int
+}
+
+func main() {
+	scanner := bufio.NewScanner(os.Stdin)
+	freqs := make(map[string]int)
+	for scanner.Scan() {
+		line := strings.ToLower(scanner.Text())
+		words := strings.Fields(line)
+		for _, w := range words {
+			freqs[w]++
+		}
+	}
+
+	type countPair struct {
+		word  string
+		count int
+	}
+	var items []countPair
+	for w, c := range freqs {
+		items = append(items, countPair{w, c})
+	}
+
+	for i := 0; i < len(items); i++ {
+		for j := i + 1; j < len(items); j++ {
+			if items[j].count > items[i].count || (items[j].count == items[i].count && items[j].word < items[i].word) {
+				items[i], items[j] = items[j], items[i]
+			}
+		}
+	}
+
+	if len(items) > 10 {
+		items = items[:10]
+	}
+	for _, item := range items {
+		fmt.Printf("%s: %d\n", item.word, item.count)
+	}
+}
+#END wordfreq.go#
+
+#START filetreewalk.go#
+package main
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+)
+
+func main() {
+	if len(os.Args) < 2 {
+		return
+	}
+	root := os.Args[1]
+	info, err := os.Stat(root)
+	if err != nil {
+		return
+	}
+	if !info.IsDir() {
+		return
+	}
+
+	var files []struct {
+		name string
+		size int64
+	}
+	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		files = append(files, struct {
+			name string
+			size int64
+		}{info.Name(), info.Size()})
+		return nil
+	})
+
+	sort.Slice(files, func(i, j int) bool {
+		if files[i].size != files[j].size {
+			return files[i].size > files[j].size
+		}
+		return files[i].name < files[j].name
+	})
+
+	for _, f := range files {
+		fmt.Printf("%d %s\n", f.size, filepath.Join(root, f.name))
+	}
+}
+#END filetreewalk.go#

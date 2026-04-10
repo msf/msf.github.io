@@ -1,0 +1,8 @@
+# exam
+./scraper.go:261:14: cannot use &interval (value of type *"time".Duration) as *int value in argument to flag.IntVar
+./scraper.go:301:3: declared and not used: ih
+./scraper.go:302:3: declared and not used: su
+./scraper.go:303:3: declared and not used: id
+./scraper.go:304:3: declared and not used: bs
+./scraper.go:329:6: undefined: buffer
+./scraper.go:336:21: undefined: buffer

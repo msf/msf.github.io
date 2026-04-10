@@ -1,0 +1,11 @@
+{
+  "eval": {
+    "score": 0,
+    "max": 10,
+    "summary": "compile:FAIL"
+  },
+  "model": "gemma4-e4b",
+  "tokens": 2885,
+  "tps": 13.658892976409273,
+  "wall_s": 225.316459425
+}

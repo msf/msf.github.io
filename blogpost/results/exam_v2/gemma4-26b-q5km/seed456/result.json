@@ -1,0 +1,11 @@
+{
+  "eval": {
+    "score": 6,
+    "max": 10,
+    "summary": "TestScenario:FAIL TestScenario/OnlineFlow:PASS TestScenario/BuffersDuringOutage:PASS TestScenario/FlushOnReconnect:PASS TestScenario/BufferBounded:FAIL TestScenario/EvictionRandom:PASS TestMultipleOutageCycles:PASS TestBufferSizeZero:FAIL TestBufferSizeOne:PASS TestRaceDetector:FAIL"
+  },
+  "model": "gemma4-q5km",
+  "tokens": 2584,
+  "tps": 15.545163624367651,
+  "wall_s": 182.82229878
+}

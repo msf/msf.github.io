@@ -1,0 +1,11 @@
+{
+  "eval": {
+    "score": 0,
+    "max": 10,
+    "summary": "compile:FAIL"
+  },
+  "model": "gpt-oss",
+  "tokens": 4457,
+  "tps": 26.305825889346295,
+  "wall_s": 169.573808994
+}

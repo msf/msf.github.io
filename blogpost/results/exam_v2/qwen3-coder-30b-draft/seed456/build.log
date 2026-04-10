@@ -1,0 +1,2 @@
+# exam
+./scraper.go:308:88: invalid operation: sink (variable of type *BufferedSink) is not an interface

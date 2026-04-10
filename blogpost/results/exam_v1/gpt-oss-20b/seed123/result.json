@@ -1,0 +1,11 @@
+{
+  "eval": {
+    "score": 14,
+    "max": 15,
+    "summary": "factorial:5/5 wordfreq:4/5 filetreewalk:5/5"
+  },
+  "model": "gpt-oss",
+  "tokens": 861,
+  "tps": 27.135139993685485,
+  "wall_s": 43.013252123
+}

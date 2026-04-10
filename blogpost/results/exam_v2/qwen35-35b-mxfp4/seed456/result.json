@@ -1,0 +1,11 @@
+{
+  "eval": {
+    "score": 6,
+    "max": 10,
+    "summary": "TestScenario:FAIL TestScenario/OnlineFlow:PASS TestScenario/BuffersDuringOutage:PASS TestScenario/FlushOnReconnect:FAIL TestScenario/BufferBounded:PASS TestScenario/EvictionRandom:PASS TestMultipleOutageCycles:PASS TestBufferSizeZero:FAIL TestBufferSizeOne:PASS TestRaceDetector:FAIL"
+  },
+  "model": "qwen35-35b-mxfp4",
+  "tokens": 5342,
+  "tps": 18.88672506683415,
+  "wall_s": 283.00506891
+}

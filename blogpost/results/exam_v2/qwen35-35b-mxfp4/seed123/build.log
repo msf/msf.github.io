@@ -1,0 +1,2 @@
+# exam
+./scraper.go:185:1: syntax error: imports must appear before other declarations

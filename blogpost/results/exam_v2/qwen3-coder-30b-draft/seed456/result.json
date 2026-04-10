@@ -1,0 +1,11 @@
+{
+  "eval": {
+    "score": 0,
+    "max": 10,
+    "summary": "compile:FAIL"
+  },
+  "model": "qwen3-coder-draft",
+  "tokens": 2104,
+  "tps": 23.318851041196677,
+  "wall_s": 111.291315581
+}

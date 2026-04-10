@@ -9,11 +9,13 @@ set -euo pipefail
 # --- CONFIG ---
 LLAMA_CLI="${LLAMA_CLI:-llama-completion}"
 MODEL_DIR="${MODEL_DIR:-$HOME/.cache/llama.cpp}"
+MODEL_DIR="$(readlink -f "$MODEL_DIR")"
 CTX_SIZE="${CTX_SIZE:-4096}"
 N_PREDICT="${N_PREDICT:--2}"
 REASONING_BUDGET="${REASONING_BUDGET:--1}"
 TIMEOUT="${TIMEOUT:-60}"
 MODEL_FILTER="${MODEL_FILTER:-}"  # set to substring to run only matching models
+DRAFT_MAX="${DRAFT_MAX:-16}"      # speculative decoding tokens per step
 
 OUTDIR="$(pwd)/bench_results"
 mkdir -p "$OUTDIR"
@@ -57,7 +59,7 @@ tr '[:upper:]' '[:lower:]' < "$TEST_INPUT" \
 
 # Generate expected filetree reference (sizes descending)
 EXPECTED_FILETREE="$OUTDIR/expected_filetree_sizes.txt"
-find "$HOME/.cache/llama.cpp" -type f ! -name '*mmproj*' -printf '%s\n' | sort -rn > "$EXPECTED_FILETREE"
+find "$MODEL_DIR" -type f ! -name '*mmproj*' -printf '%s\n' | sort -rn > "$EXPECTED_FILETREE"
 
 # --- 3 PROMPTS ---
 TASK_NAMES=("factorial" "wordfreq" "filetree")
@@ -69,6 +71,19 @@ TASK_PROMPT_wordfreq='/no_think Output only Go code. A complete single-file Go p
 TASK_PROMPT_filetree='/no_think Output only Go code. A complete single-file Go program (package main) that takes a directory as its first command-line argument, recursively walks it, finds all regular files, sorts them by size descending, and prints each as "SIZE PATH" one per line. Be minimal, no comments.'
 
 # --- FUNCTIONS ---
+
+# Find a draft model for speculative decoding (same family, smallest available)
+# Returns the -hfrd compatible repo:quant string
+find_draft_model() {
+  local model_name="$1"
+  case "$model_name" in
+    *Qwen3-*)
+      local draft
+      draft=$(find -L "$MODEL_DIR" -name '*Qwen3-0.6B*Q8_0.gguf' -type f ! -name '*.downloadInProgress' | head -1)
+      if [ -n "$draft" ]; then echo "Qwen/Qwen3-0.6B-GGUF:Q8_0"; fi
+      ;;
+  esac
+}
 
 extract_go_code() {
   local raw_file="$1"
@@ -157,7 +172,7 @@ run_and_verify() {
       fi
       ;;
     filetree)
-      if actual=$(timeout 10 "$bin" "$HOME/.cache/llama.cpp" 2>&1); then
+      if actual=$(timeout 10 "$bin" "$MODEL_DIR" 2>&1); then
         run_ok="OK"
         echo "$actual" > "$outfile"
         # Check: output has lines, sizes are descending
@@ -241,10 +256,10 @@ while IFS= read -r f; do
     *Coder-7B*) continue ;;
   esac
   if [ -n "$MODEL_FILTER" ]; then
-    echo "$base" | grep -q "$MODEL_FILTER" || continue
+    echo "$base" | grep -qE "$MODEL_FILTER" || continue
   fi
   MODELS+=("$f")
-done < <(find "$MODEL_DIR" -name '*.gguf' -type f -printf '%s %p\n' | sort -rn | awk '{print $2}')
+done < <(find -L "$MODEL_DIR" -name '*.gguf' -type f -printf '%s %p\n' | sort -rn | awk '{print $2}')
 
 if [ ${#MODELS[@]} -eq 0 ]; then
   echo "No models found" >&2
@@ -268,9 +283,20 @@ for model_path in "${MODELS[@]}"; do
   model_dir="$OUTDIR/$short"
   mkdir -p "$model_dir"
 
-  echo "============================================================"
-  echo "MODEL: $short"
-  echo "============================================================"
+  # Check for draft model (speculative decoding)
+  draft_path=$(find_draft_model "$model_name")
+  draft_args=()
+  cli="$LLAMA_CLI"
+  if [ -n "$draft_path" ] && [ "$model_path" != "$draft_path" ]; then
+    draft_args=(-hfrd "$draft_path")
+    echo "============================================================"
+    echo "MODEL: $short  [draft: $(basename "$draft_path")]"
+    echo "============================================================"
+  else
+    echo "============================================================"
+    echo "MODEL: $short"
+    echo "============================================================"
+  fi
 
   for task in "${TASK_NAMES[@]}"; do
     # Get prompt for this task
@@ -290,6 +316,7 @@ for model_path in "${MODELS[@]}"; do
       timeout "$TIMEOUT" \
       "$LLAMA_CLI" \
         --model "$model_path" \
+        "${draft_args[@]}" \
         --ctx-size "$CTX_SIZE" \
         --predict "$N_PREDICT" \
         --reasoning-budget "$REASONING_BUDGET" \

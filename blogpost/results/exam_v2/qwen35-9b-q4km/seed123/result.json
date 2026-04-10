@@ -1,0 +1,11 @@
+{
+  "eval": {
+    "score": 7,
+    "max": 8,
+    "summary": "TestScenario:PASS TestScenario/OnlineFlow:PASS TestScenario/BuffersDuringOutage:PASS TestScenario/FlushOnReconnect:PASS TestScenario/BufferBounded:PASS TestScenario/EvictionRandom:PASS TestMultipleOutageCycles:PASS TestBufferSizeZero:FAIL"
+  },
+  "model": "qwen35-9b",
+  "tokens": 5160,
+  "tps": 12.243866266721882,
+  "wall_s": 421.61780011
+}

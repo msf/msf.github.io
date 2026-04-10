@@ -1,0 +1,11 @@
+{
+  "eval": {
+    "score": 13,
+    "max": 15,
+    "summary": "factorial:5/5 wordfreq:4/5 filetreewalk:4/5"
+  },
+  "model": "qwen35-35b-q5km",
+  "tokens": 822,
+  "tps": 20.94975964738343,
+  "wall_s": 60.891290088
+}

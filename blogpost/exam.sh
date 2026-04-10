@@ -4,11 +4,13 @@ set -euo pipefail
 # Exam mode: all 3 programs in a single prompt, single timeout
 LLAMA_CLI="${LLAMA_CLI:-llama-completion}"
 MODEL_DIR="${MODEL_DIR:-$HOME/.cache/llama.cpp}"
+MODEL_DIR="$(readlink -f "$MODEL_DIR")"
 CTX_SIZE="${CTX_SIZE:-8192}"
 N_PREDICT="${N_PREDICT:--2}"
 REASONING_BUDGET="${REASONING_BUDGET:--1}"
-TIMEOUT="${TIMEOUT:-180}"
+TIMEOUT="${TIMEOUT:-300}"
 MODEL_FILTER="${MODEL_FILTER:-}"
+DRAFT_MAX="${DRAFT_MAX:-16}"
 
 OUTDIR="$(pwd)/bench_results"
 mkdir -p "$OUTDIR"
@@ -52,7 +54,7 @@ tr '[:upper:]' '[:lower:]' < "$TEST_INPUT" \
 
 # Expected filetree sizes
 EXPECTED_FILETREE="$OUTDIR/expected_filetree_sizes.txt"
-find "$HOME/.cache/llama.cpp" -type f ! -name '*mmproj*' -printf '%s\n' | sort -rn > "$EXPECTED_FILETREE"
+find "$MODEL_DIR" -type f ! -name '*mmproj*' -printf '%s\n' | sort -rn > "$EXPECTED_FILETREE"
 
 # --- THE EXAM PROMPT ---
 read -r -d '' EXAM_PROMPT <<'PROMPTEOF' || true
@@ -74,6 +76,23 @@ The three programs:
 Be minimal, no comments, no explanation. Just the three files with their markers.
 PROMPTEOF
 
+# Find a draft model for speculative decoding (same family, smallest available)
+find_draft_model() {
+  local model_name="$1"
+  case "$model_name" in
+    *Qwen3.5-*)
+      local draft
+      draft=$(find -L "$MODEL_DIR" -name '*Qwen3.5-0.8B*Q8_0.gguf' -type f ! -name '*.downloadInProgress' | head -1)
+      if [ -n "$draft" ]; then echo "unsloth/Qwen3.5-0.8B-GGUF:Q8_0"; fi
+      ;;
+    *Qwen3-*)
+      local draft
+      draft=$(find -L "$MODEL_DIR" -name '*Qwen3-0.6B*Q8_0.gguf' -type f ! -name '*.downloadInProgress' | head -1)
+      if [ -n "$draft" ]; then echo "Qwen/Qwen3-0.6B-GGUF:Q8_0"; fi
+      ;;
+  esac
+}
+
 # --- DISCOVER MODELS ---
 MODELS=()
 while IFS= read -r f; do
@@ -83,10 +102,10 @@ while IFS= read -r f; do
     *Coder-7B*) continue ;;
   esac
   if [ -n "$MODEL_FILTER" ]; then
-    echo "$base" | grep -q "$MODEL_FILTER" || continue
+    echo "$base" | grep -qE "$MODEL_FILTER" || continue
   fi
   MODELS+=("$f")
-done < <(find "$MODEL_DIR" -name '*.gguf' -type f -printf '%s %p\n' | sort -rn | awk '{print $2}')
+done < <(find -L "$MODEL_DIR" -name '*.gguf' -type f -printf '%s %p\n' | sort -rn | awk '{print $2}')
 
 if [ ${#MODELS[@]} -eq 0 ]; then
   echo "No models found" >&2
@@ -103,12 +122,19 @@ extract_exam_files() {
   local raw_file="$1"
   local out_dir="$2"
 
-  # Clean raw output
+  # Clean raw output: strip think blocks, model tokens, and analysis preamble
   local clean
   clean=$(cat "$raw_file" \
     | sed '/<think>/,/<\/think>/d' \
     | sed 's/<|[^>]*|>//g' \
     | sed 's/\[end of text\]//g')
+
+  # If markers appear multiple times (e.g. gpt-oss analysis + final), keep only from last #START factorial.go#
+  local last_start
+  last_start=$(echo "$clean" | grep -n '#START factorial.go#' | tail -1 | cut -d: -f1) || true
+  if [ -n "$last_start" ] && [ "$last_start" -gt 1 ]; then
+    clean=$(echo "$clean" | tail -n +"$last_start")
+  fi
 
   # Extract each file between #START name# and #END name#
   for fname in factorial.go wordfreq.go filetreewalk.go; do
@@ -145,9 +171,19 @@ for model_path in "${MODELS[@]}"; do
   exam_dir="$OUTDIR/$short/exam"
   mkdir -p "$exam_dir"
 
-  echo "============================================================"
-  echo "EXAM: $short"
-  echo "============================================================"
+  # Check for draft model (speculative decoding)
+  draft_path=$(find_draft_model "$model_name")
+  draft_args=()
+  if [ -n "$draft_path" ] && [ "$model_path" != "$draft_path" ]; then
+    draft_args=(-hfrd "$draft_path")
+    echo "============================================================"
+    echo "EXAM: $short  [draft: $(basename "$draft_path")]"
+    echo "============================================================"
+  else
+    echo "============================================================"
+    echo "EXAM: $short"
+    echo "============================================================"
+  fi
 
   raw_file="$exam_dir/exam.raw"
   stderr_file="$exam_dir/exam.stderr"
@@ -158,6 +194,7 @@ for model_path in "${MODELS[@]}"; do
     timeout "$TIMEOUT" \
     "$LLAMA_CLI" \
       --model "$model_path" \
+      "${draft_args[@]}" \
       --ctx-size "$CTX_SIZE" \
       --predict "$N_PREDICT" \
       --reasoning-budget "$REASONING_BUDGET" \
@@ -240,7 +277,7 @@ for model_path in "${MODELS[@]}"; do
         fi
         ;;
       filetreewalk)
-        if actual=$(timeout 10 "$exam_dir/${base}.bin" "$HOME/.cache/llama.cpp" 2>&1); then
+        if actual=$(timeout 10 "$exam_dir/${base}.bin" "$MODEL_DIR" 2>&1); then
           run_ok="OK"; score=$((score + 1))
           nlines=$(echo "$actual" | wc -l)
           nfiles_expected=$(wc -l < "$EXPECTED_FILETREE")

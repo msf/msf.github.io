@@ -1,0 +1,11 @@
+{
+  "eval": {
+    "score": 0,
+    "max": 10,
+    "summary": "compile:FAIL"
+  },
+  "model": "qwen35-35b-mxfp4",
+  "tokens": 4087,
+  "tps": 20.409134483412448,
+  "wall_s": 232.8247829
+}

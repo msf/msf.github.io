@@ -1,0 +1,310 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"encoding/xml"
+	"flag"
+	"fmt"
+	"io"
+	"log"
+	"math/rand"
+	"net/http"
+	"sync"
+	"time"
+)
+
+// Metric represents a single timestamped measurement from the inverter.
+type Metric struct {
+	Timestamp  time.Time          `json:"timestamp"`
+	DeviceName string             `json:"device_name"`
+	Fields     map[string]float64 `json:"fields"`
+}
+
+// MetricSink accepts metrics for storage or forwarding.
+type MetricSink interface {
+	Write(m Metric) error
+}
+
+// MetricScraper fetches raw measurement data from a source.
+type MetricScraper interface {
+	Scrape() (*InverterData, error)
+}
+
+// --- HTTP implementations ---
+
+// HTTPSink sends metrics as JSON POST to a remote endpoint.
+type HTTPSink struct {
+	URL    string
+	client *http.Client
+}
+
+func NewHTTPSink(url string) *HTTPSink {
+	return &HTTPSink{
+		URL:    url,
+		client: &http.Client{Timeout: 5 * time.Second},
+	}
+}
+
+func (w *HTTPSink) Write(m Metric) error {
+	data, err := json.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("marshal: %w", err)
+	}
+	resp, err := w.client.Post(w.URL+"/write", "application/json", bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("sink returned HTTP %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// HTTPScraper fetches measurements from a Kostal inverter's XML endpoint.
+type HTTPScraper struct {
+	URL    string
+	client *http.Client
+}
+
+func NewHTTPScraper(host string) *HTTPScraper {
+	return &HTTPScraper{
+		URL:    "http://" + host + "/measurements.xml",
+		client: &http.Client{Timeout: 5 * time.Second},
+	}
+}
+
+func (s *HTTPScraper) Scrape() (*InverterData, error) {
+	resp, err := s.client.Get(s.URL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var root InverterData
+	return &root, xml.Unmarshal(data, &root)
+}
+
+// --- Kostal solar inverter XML types ---
+
+type InverterData struct {
+	XMLName xml.Name `xml:"root"`
+	Device  struct {
+		Name         string `xml:"Name,attr"`
+		Type         string `xml:"Type,attr"`
+		Serial       string `xml:"Serial,attr"`
+		IPAddress    string `xml:"IpAddress,attr"`
+		DateTime     string `xml:"DateTime,attr"`
+		Measurements struct {
+			Measurement []struct {
+				Value float64 `xml:"Value,attr"`
+				Unit  string  `xml:"Unit,attr"`
+				Type  string  `xml:"Type,attr"`
+			} `xml:"Measurement"`
+		} `xml:"Measurements"`
+	} `xml:"Device"`
+}
+
+// --- Domain logic ---
+
+// collect extracts a Metric from parsed inverter data.
+func collect(data *InverterData) Metric {
+	m := Metric{
+		Timestamp:  time.Now().UTC(),
+		DeviceName: data.Device.Name,
+		Fields:     make(map[string]float64),
+	}
+	for _, meas := range data.Device.Measurements.Measurement {
+		key := fmt.Sprintf("%s_%s", meas.Type, meas.Unit)
+		m.Fields[key] = meas.Value
+	}
+	return m
+}
+
+type kostalPower struct {
+	gridConsumed float64
+	gridInjected float64
+	ownConsumed  float64
+}
+
+func (k kostalPower) Total() float64 {
+	if k.gridConsumed > 0 {
+		return k.gridConsumed + k.ownConsumed
+	}
+	return k.ownConsumed + k.gridInjected
+}
+
+func (k kostalPower) Validate() error {
+	if k.ownConsumed < 0 || k.gridInjected < 0 || k.gridConsumed < 0 {
+		return fmt.Errorf("invalid power %+v: values cannot be negative", k)
+	}
+	if (k.gridInjected == 0 && k.gridConsumed == 0) ||
+		(k.gridInjected > 0 && k.gridConsumed > 0) {
+		return fmt.Errorf("inconsistent power %+v: grid must be either injecting or consuming", k)
+	}
+	return nil
+}
+
+func extractPower(data *InverterData) kostalPower {
+	var p kostalPower
+	for _, m := range data.Device.Measurements.Measurement {
+		switch m.Type {
+		case "OwnConsumedPower":
+			p.ownConsumed = m.Value
+		case "GridConsumedPower":
+			p.gridConsumed = m.Value
+		case "GridInjectedPower":
+			p.gridInjected = m.Value
+		}
+	}
+	return p
+}
+
+// --- Resilient Buffer ---
+
+// MetricBuffer wraps a slice to hold metrics with a fixed capacity.
+// When full, adding a new metric replaces a random existing one.
+type MetricBuffer struct {
+	mu       sync.RWMutex
+	metrics  []Metric
+	capacity int
+}
+
+func NewMetricBuffer(capacity int) *MetricBuffer {
+	return &MetricBuffer{
+		metrics:  make([]Metric, 0, capacity),
+		capacity: capacity,
+	}
+}
+
+// Add adds a metric to the buffer. If the buffer is full, it replaces a random metric.
+func (b *MetricBuffer) Add(m Metric) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if len(b.metrics) < b.capacity {
+		b.metrics = append(b.metrics, m)
+	} else {
+		// Replace a random metric
+		idx := rand.Intn(len(b.metrics))
+		b.metrics[idx] = m
+	}
+}
+
+// Size returns the current number of metrics in the buffer.
+func (b *MetricBuffer) Size() int {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return len(b.metrics)
+}
+
+// Flush drains all metrics from the buffer and returns them as a slice.
+func (b *MetricBuffer) Flush() []Metric {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if len(b.metrics) == 0 {
+		return nil
+	}
+	c := make([]Metric, len(b.metrics))
+	copy(c, b.metrics)
+	b.metrics = b.metrics[:0] // clear buffer
+	return c
+}
+
+// --- Main loop ---
+
+func run(scraper MetricScraper, sink MetricSink, interval time.Duration, bufferSize int) {
+	buffer := NewMetricBuffer(bufferSize)
+
+	// Start the flusher goroutine
+	go flusher(sink, buffer, 10*time.Second)
+
+	for {
+		time.Sleep(interval)
+
+		data, err := scraper.Scrape()
+		if err != nil {
+			log.Printf("scrape error: %v", err)
+			continue
+		}
+
+		m := collect(data)
+		power := extractPower(data)
+		if err := power.Validate(); err != nil {
+			log.Printf("power validation: %v", err)
+		} else {
+			m.Fields["TotalPower_W"] = power.Total()
+		}
+
+		// Instead of writing directly to sink, add to buffer
+		buffer.Add(m)
+	}
+}
+
+// flusher attempts to send buffered metrics to the sink periodically.
+// If a send succeeds, it flushes all remaining buffered metrics.
+func flusher(sink MetricSink, buffer *MetricBuffer, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		// Check if we have metrics to send
+		if buffer.Size() == 0 {
+			continue
+		}
+
+		metrics := buffer.Flush()
+		if len(metrics) == 0 {
+			continue
+		}
+
+		successCount := 0
+		var lastErr error
+
+		for _, m := range metrics {
+			if err := sink.Write(m); err != nil {
+				lastErr = err
+				log.Printf("flush error: %v (metric dropped)", err)
+			} else {
+				successCount++
+			}
+		}
+
+		if successCount > 0 {
+			log.Printf("flush successful: sent %d metrics, last error was: %v", successCount, lastErr)
+		} else if lastErr != nil {
+			// If all failed, we lost them. In a real production system, you might
+			// want to re-queue them, but the requirements imply dropping on total failure
+			// or letting the next flush attempt handle them if they were re-queued.
+			// Here, they are lost as per the original behavior when write failed,
+			// but now we only lost what we tried to send.
+		}
+	}
+}
+
+func main() {
+	var (
+		inverterHost string
+		sinkURL      string
+		interval     time.Duration
+		bufferSize   int
+	)
+	flag.StringVar(&inverterHost, "inverter-host", "192.168.0.11", "inverter hostname or IP")
+	flag.StringVar(&sinkURL, "sink-url", "http://localhost:8086", "metrics sink base URL")
+	flag.DurationVar(&interval, "interval", 5*time.Second, "scrape interval (e.g. 5s, 100ms)")
+	flag.IntVar(&bufferSize, "buffer-size", 1000, "maximum number of metrics to buffer in memory")
+	flag.Parse()
+
+	// Seed random for the buffer replacement logic
+	rand.Seed(time.Now().UnixNano())
+
+	scraper := NewHTTPScraper(inverterHost)
+	sink := NewHTTPSink(sinkURL)
+
+	log.Printf("starting: scrape=%s sink=%s interval=%v buffer-size=%d", scraper.URL, sink.URL, interval, bufferSize)
+	run(scraper, sink, interval, bufferSize)
+}

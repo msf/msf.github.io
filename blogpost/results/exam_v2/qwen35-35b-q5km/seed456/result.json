@@ -1,0 +1,11 @@
+{
+  "eval": {
+    "score": 6,
+    "max": 10,
+    "summary": "TestScenario:FAIL TestScenario/OnlineFlow:PASS TestScenario/BuffersDuringOutage:PASS TestScenario/FlushOnReconnect:PASS TestScenario/BufferBounded:FAIL TestScenario/EvictionRandom:PASS TestMultipleOutageCycles:PASS TestBufferSizeZero:FAIL TestBufferSizeOne:PASS TestRaceDetector:FAIL"
+  },
+  "model": "qwen35-35b-q5km",
+  "tokens": 2284,
+  "tps": 20.050991849438613,
+  "wall_s": 114.090589888
+}

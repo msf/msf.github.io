@@ -1,0 +1,11 @@
+{
+  "eval": {
+    "score": 0,
+    "max": 10,
+    "summary": "compile:FAIL"
+  },
+  "model": "qwen35-35b-q6k",
+  "tokens": 2940,
+  "tps": 20.920251999378372,
+  "wall_s": 140.702508936
+}

@@ -1,0 +1,11 @@
+{
+  "eval": {
+    "score": 14,
+    "max": 15,
+    "summary": "factorial:5/5 wordfreq:4/5 filetreewalk:5/5"
+  },
+  "model": "qwen3-coder-draft",
+  "tokens": 466,
+  "tps": 26.059923059475228,
+  "wall_s": 34.365769683
+}

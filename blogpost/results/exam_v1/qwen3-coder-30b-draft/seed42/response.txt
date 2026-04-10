@@ -1,0 +1,100 @@
+#START factorial.go#
+package main
+
+import "fmt"
+
+func main() {
+    result := 1
+    for i := 1; i <= 10; i++ {
+        result *= i
+    }
+    fmt.Println(result)
+}
+#END factorial.go#
+
+#START wordfreq.go#
+package main
+
+import (
+    "bufio"
+    "fmt"
+    "os"
+    "sort"
+    "strings"
+)
+
+func main() {
+    wordCount := make(map[string]int)
+    scanner := bufio.NewScanner(os.Stdin)
+    
+    for scanner.Scan() {
+        line := scanner.Text()
+        words := strings.Fields(line)
+        for _, word := range words {
+            cleanWord := strings.ToLower(word)
+            wordCount[cleanWord]++
+        }
+    }
+    
+    type wordFreq struct {
+        word  string
+        count int
+    }
+    
+    var freqList []wordFreq
+    for word, count := range wordCount {
+        freqList = append(freqList, wordFreq{word, count})
+    }
+    
+    sort.Slice(freqList, func(i, j int) bool {
+        return freqList[i].count > freqList[j].count
+    })
+    
+    for i := 0; i < 10 && i < len(freqList); i++ {
+        fmt.Printf("%s: %d\n", freqList[i].word, freqList[i].count)
+    }
+}
+#END wordfreq.go#
+
+#START filetreewalk.go#
+package main
+
+import (
+    "fmt"
+    "os"
+    "path/filepath"
+    "sort"
+)
+
+func main() {
+    if len(os.Args) < 2 {
+        return
+    }
+    
+    var files []struct {
+        size int64
+        path string
+    }
+    
+    filepath.Walk(os.Args[1], func(path string, info os.FileInfo, err error) error {
+        if err != nil {
+            return err
+        }
+        if info.Mode().IsRegular() {
+            files = append(files, struct {
+                size int64
+                path string
+            }{info.Size(), path})
+        }
+        return nil
+    })
+    
+    sort.Slice(files, func(i, j int) bool {
+        return files[i].size > files[j].size
+    })
+    
+    for _, f := range files {
+        fmt.Printf("%d %s\n", f.size, f.path)
+    }
+}
+#END filetreewalk.go#

@@ -1,0 +1,14 @@
+2026/04/09 02:52:41 starting: scrape=http://127.0.0.1:46319/measurements.xml sink=http://127.0.0.1:46319 interval=1s buffer-size=0
+panic: invalid argument to Intn
+
+goroutine 1 [running]:
+math/rand.(*Rand).Intn(0x1?, 0x3368798180d0?)
+	/usr/local/go/src/math/rand/rand.go:180 +0x4c
+math/rand.Intn(0x0)
+	/usr/local/go/src/math/rand/rand.go:464 +0x25
+main.(*ResilientBuffer).Put(0x3368796fc000, {{0x15b60e12, 0xee168fd6a, 0x0}, {0x3368795b41a0, 0x4}, 0x33687967a4b0})
+	/home/miguel/play/msf.github.io/blogpost/results/exam_v2/qwen35-35b-q5km/build/scraper.go:200 +0x197
+main.run({0x7733a0, 0x3368796a02a0}, 0x3368796fc000, 0x3b9aca00)
+	/home/miguel/play/msf.github.io/blogpost/results/exam_v2/qwen35-35b-q5km/build/scraper.go:301 +0x473
+main.main()
+	/home/miguel/play/msf.github.io/blogpost/results/exam_v2/qwen35-35b-q5km/build/scraper.go:332 +0x578

@@ -1,0 +1,11 @@
+{
+  "eval": {
+    "score": 14,
+    "max": 15,
+    "summary": "factorial:5/5 wordfreq:4/5 filetreewalk:5/5"
+  },
+  "model": "gemma4-e4b",
+  "tokens": 802,
+  "tps": 13.338807012027894,
+  "wall_s": 71.067268413
+}

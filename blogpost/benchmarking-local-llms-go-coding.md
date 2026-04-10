@@ -169,3 +169,7 @@ The exam mode is the better test. Individual tasks with hints are too easy -- th
 
 - [bench.sh](bench.sh) -- individual tasks, one prompt per model per task
 - [exam.sh](exam.sh) -- exam mode, all three tasks in one prompt
+
+## Next episode
+
+*[Local LLMs got better. So I made a harder test.](local-llm-coding-harder-test.md)* -- April 2026. Newer models (Qwen3.5, Gemma 4), a harder exam (modifying a real Go program), a quantization sweep, and proper infrastructure (llama-swap, Go exam driver).

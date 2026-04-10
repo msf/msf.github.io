@@ -1,0 +1,11 @@
+{
+  "eval": {
+    "score": 0,
+    "max": 10,
+    "summary": "compile:FAIL"
+  },
+  "model": "gemma4-mxfp4",
+  "tokens": 2484,
+  "tps": 17.431135156783515,
+  "wall_s": 142.692721062
+}

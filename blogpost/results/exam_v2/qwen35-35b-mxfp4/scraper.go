@@ -1,0 +1,395 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"encoding/xml"
+	"flag"
+	"fmt"
+	"io"
+	"log"
+	"math/rand"
+	"net/http"
+	"time"
+)
+
+// Metric represents a single timestamped measurement from the inverter.
+type Metric struct {
+	Timestamp  time.Time          `json:"timestamp"`
+	DeviceName string             `json:"device_name"`
+	Fields     map[string]float64 `json:"fields"`
+}
+
+// MetricSink accepts metrics for storage or forwarding.
+type MetricSink interface {
+	Write(m Metric) error
+}
+
+// MetricScraper fetches raw measurement data from a source.
+type MetricScraper interface {
+	Scrape() (*InverterData, error)
+}
+
+// --- HTTP implementations ---
+
+// HTTPSink sends metrics as JSON POST to a remote endpoint.
+type HTTPSink struct {
+	URL    string
+	client *http.Client
+}
+
+func NewHTTPSink(url string) *HTTPSink {
+	return &HTTPSink{
+		URL:    url,
+		client: &http.Client{Timeout: 5 * time.Second},
+	}
+}
+
+func (w *HTTPSink) Write(m Metric) error {
+	data, err := json.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("marshal: %w", err)
+	}
+	resp, err := w.client.Post(w.URL+"/write", "application/json", bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("sink returned HTTP %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// HTTPScraper fetches measurements from a Kostal inverter's XML endpoint.
+type HTTPScraper struct {
+	URL    string
+	client *http.Client
+}
+
+func NewHTTPScraper(host string) *HTTPScraper {
+	return &HTTPScraper{
+		URL:    "http://" + host + "/measurements.xml",
+		client: &http.Client{Timeout: 5 * time.Second},
+	}
+}
+
+func (s *HTTPScraper) Scrape() (*InverterData, error) {
+	resp, err := s.client.Get(s.URL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var root InverterData
+	return &root, xml.Unmarshal(data, &root)
+}
+
+// --- Kostal solar inverter XML types ---
+
+type InverterData struct {
+	XMLName xml.Name `xml:"root"`
+	Device  struct {
+		Name         string `xml:"Name,attr"`
+		Type         string `xml:"Type,attr"`
+		Serial       string `xml:"Serial,attr"`
+		IPAddress    string `xml:"IpAddress,attr"`
+		DateTime     string `xml:"DateTime,attr"`
+		Measurements struct {
+			Measurement []struct {
+				Value float64 `xml:"Value,attr"`
+				Unit  string  `xml:"Unit,attr"`
+				Type  string  `xml:"Type,attr"`
+			} `xml:"Measurement"`
+		} `xml:"Measurements"`
+	} `xml:"Device"`
+}
+
+// --- Domain logic ---
+
+// collect extracts a Metric from parsed inverter data.
+func collect(data *InverterData) Metric {
+	m := Metric{
+		Timestamp:  time.Now().UTC(),
+		DeviceName: data.Device.Name,
+		Fields:     make(map[string]float64),
+	}
+	for _, meas := range data.Device.Measurements.Measurement {
+		key := fmt.Sprintf("%s_%s", meas.Type, meas.Unit)
+		m.Fields[key] = meas.Value
+	}
+	return m
+}
+
+type kostalPower struct {
+	gridConsumed float64
+	gridInjected float64
+	ownConsumed  float64
+}
+
+func (k kostalPower) Total() float64 {
+	if k.gridConsumed > 0 {
+		return k.gridConsumed + k.ownConsumed
+	}
+	return k.ownConsumed + k.gridInjected
+}
+
+func (k kostalPower) Validate() error {
+	if k.ownConsumed < 0 || k.gridInjected < 0 || k.gridConsumed < 0 {
+		return fmt.Errorf("invalid power %+v: values cannot be negative", k)
+	}
+	if (k.gridInjected == 0 && k.gridConsumed == 0) ||
+		(k.gridInjected > 0 && k.gridConsumed > 0) {
+		return fmt.Errorf("inconsistent power %+v: grid must be either injecting or consuming", k)
+	}
+	return nil
+}
+
+func extractPower(data *InverterData) kostalPower {
+	var p kostalPower
+	for _, m := range data.Device.Measurements.Measurement {
+		switch m.Type {
+		case "OwnConsumedPower":
+			p.ownConsumed = m.Value
+		case "GridConsumedPower":
+			p.gridConsumed = m.Value
+		case "GridInjectedPower":
+			p.gridInjected = m.Value
+		}
+	}
+	return p
+}
+
+// --- Resilient Buffer ---
+
+// ResilientSink wraps a MetricSink and provides an in-memory buffer.
+// When the sink is unreachable, metrics are stored in the buffer.
+// When the buffer is full, a random metric is evicted to make room for the new one.
+type ResilientSink struct {
+	sink   MetricSink
+	buffer []Metric
+	size   int
+	mu     bool // Using a simple boolean for lock simulation or just relying on single-threaded collection
+	// Note: The scraper runs in the main loop, so we don't need strict mutexes if
+	// we ensure the background sender doesn't interfere with the main writer logic.
+	// However, since we add a goroutine, we need synchronization.
+	syncChan chan struct{} // Simple signaling to flush
+}
+
+func NewResilientSink(sink MetricSink, bufferSize int) *ResilientSink {
+	return &ResilientSink{
+		sink:   sink,
+		buffer: make([]Metric, 0, bufferSize),
+		size:   bufferSize,
+		syncChan: make(chan struct{}, 1),
+	}
+}
+
+func (r *ResilientSink) Write(m Metric) error {
+	// Always accept the metric
+	if len(r.buffer) < r.size {
+		r.buffer = append(r.buffer, m)
+	} else {
+		// Buffer full: random replacement
+		idx := rand.Intn(r.size)
+		r.buffer[idx] = m
+	}
+	
+	// Signal the background goroutine to try sending
+	select {
+	case r.syncChan <- struct{}{}:
+	default:
+		// Channel full, already pending a send attempt
+	}
+	
+	return nil
+}
+
+// StartFlushLoop starts the background goroutine that attempts to send buffered metrics.
+func (r *ResilientSink) StartFlushLoop(interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		
+		// Initial flush attempt
+		r.flush()
+		
+		for {
+			select {
+			case <-ticker.C:
+				r.flush()
+			case <-r.syncChan:
+				r.flush()
+			}
+		}
+	}()
+}
+
+func (r *ResilientSink) flush() {
+	if len(r.buffer) == 0 {
+		return
+	}
+
+	// Clone the buffer to send in one batch or one by one?
+	// The requirement says "send buffered metrics". Let's send one by one to keep error handling simple.
+	// However, to ensure we don't deadlock if the sink is very slow but we need to clear the buffer,
+	// we should copy the slice before sending if we are worried about concurrent writes?
+	// Since the main goroutine writes to the buffer and this goroutine reads it, we need a mutex.
+	// Let's add a sync.Mutex to be safe.
+	
+	// Re-defining ResilientSink with mutex for safety is better, but since I cannot change the struct definition logic 
+	// without breaking the "complete file" constraint if I had to keep it exactly as is, I will add the mutex inside the struct.
+	// Wait, I am modifying the file. I can add fields to ResilientSink.
+}
+
+// Let's refine ResilientSink with mutex for thread safety.
+type ResilientBuffer struct {
+	mu       sync.Mutex
+	sink     MetricSink
+	buffer   []Metric
+	size     int
+}
+
+// Re-implementing the buffer logic with proper synchronization in the final file.
+// We will use the sync package.
+
+import "sync"
+
+// ... (The rest of the file needs to be updated to include the buffer logic properly) ...
+// Since I cannot just insert code in the middle of a thought without seeing the final output,
+// I will construct the final file with the corrected ResilientSink implementation.
+
+// Corrected ResilientSink implementation to be included in the final file:
+
+// ResilientBuffer wraps a MetricSink with an in-memory ring buffer (FIFO with random eviction).
+type ResilientBuffer struct {
+	mu     sync.Mutex
+	sink   MetricSink
+	buffer []Metric
+	size   int
+}
+
+func NewResilientBuffer(sink MetricSink, bufferSize int) *ResilientBuffer {
+	return &ResilientBuffer{
+		sink:   sink,
+		buffer: make([]Metric, 0, bufferSize),
+		size:   bufferSize,
+	}
+}
+
+func (b *ResilientBuffer) Write(m Metric) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if len(b.buffer) < b.size {
+		b.buffer = append(b.buffer, m)
+	} else {
+		// Buffer full: randomly replace
+		idx := rand.Intn(len(b.buffer))
+		b.buffer[idx] = m
+	}
+	return nil
+}
+
+// StartFlushLoop starts the background goroutine.
+func (b *ResilientBuffer) StartFlushLoop(interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		
+		// Send a ticker signal to flush immediately if possible, but usually wait for ticker
+		// Let's just start the loop
+		for {
+			<-ticker.C
+			b.flush()
+		}
+	}()
+}
+
+func (b *ResilientBuffer) flush() {
+	b.mu.Lock()
+	if len(b.buffer) == 0 {
+		b.mu.Unlock()
+		return
+	}
+	
+	// Copy the buffer to avoid holding the lock during network I/O
+	toSend := make([]Metric, len(b.buffer))
+	copy(toSend, b.buffer)
+	b.buffer = nil // Clear buffer immediately after copy
+	b.mu.Unlock()
+
+	// Send all metrics
+	for _, m := range toSend {
+		if err := b.sink.Write(m); err != nil {
+			log.Printf("failed to flush metric: %v", err)
+		}
+	}
+	if len(toSend) > 0 {
+		log.Printf("flushed %d metrics to sink", len(toSend))
+	}
+}
+
+// --- Main loop ---
+
+func run(scraper MetricScraper, sink MetricSink, interval time.Duration) {
+	for {
+		time.Sleep(interval)
+
+		data, err := scraper.Scrape()
+		if err != nil {
+			log.Printf("scrape error: %v", err)
+			continue
+		}
+
+		m := collect(data)
+		power := extractPower(data)
+		if err := power.Validate(); err != nil {
+			log.Printf("power validation: %v", err)
+		} else {
+			m.Fields["TotalPower_W"] = power.Total()
+		}
+
+		if err := sink.Write(m); err != nil {
+			// The new implementation won't return error on Write if it buffers.
+			// But if the sink itself is the ResilientBuffer, it won't error.
+			// We assume the ResilientBuffer is used as the sink passed to run.
+			log.Printf("write error: %v", err)
+		}
+	}
+}
+
+func main() {
+	var (
+		inverterHost string
+		sinkURL      string
+		intervalSecs int
+		bufferSize   int
+		flushInterval int
+	)
+	flag.StringVar(&inverterHost, "inverter-host", "192.168.0.11", "inverter hostname or IP")
+	flag.StringVar(&sinkURL, "sink-url", "http://localhost:8086", "metrics sink base URL")
+	flag.IntVar(&intervalSecs, "interval", 5, "scrape interval in seconds")
+	flag.IntVar(&bufferSize, "buffer-size", 1000, "maximum number of metrics to buffer")
+	flag.IntVar(&flushInterval, "flush-interval", 10, "interval to attempt flushing buffered metrics (seconds)")
+	flag.Parse()
+
+	scraper := NewHTTPScraper(inverterHost)
+	
+	// Create the resilient buffer wrapping the HTTP sink
+	resilientSink := NewResilientBuffer(NewHTTPSink(sinkURL), bufferSize)
+	
+	// Start the background flush loop
+	interval := time.Duration(flushInterval) * time.Second
+	resilientSink.StartFlushLoop(interval)
+	
+	// The main loop writes to the resilient sink. 
+	// The resilient sink writes to the HTTP sink asynchronously via the buffer.
+	
+	log.Printf("starting: scrape=%s sink=%s interval=%v buffer=%d flush=%v", 
+		scraper.URL, sinkURL, time.Duration(intervalSecs)*time.Second, bufferSize, interval)
+	run(scraper, resilientSink, time.Duration(intervalSecs)*time.Second)
+}

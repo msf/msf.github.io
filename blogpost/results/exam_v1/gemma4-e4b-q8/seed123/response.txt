@@ -1,0 +1,131 @@
+#START factorial.go#
+package main
+
+import "fmt"
+
+func main() {
+	n := 10
+	result := 1
+	for i := 1; i <= n; i++ {
+		result *= i
+	}
+	fmt.Println(result)
+}
+#END factorial.go#
+
+#START wordfreq.go#
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func main() {
+	wordCounts := make(map[string]int)
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		line := scanner.Text()
+		words := strings.Fields(line)
+		for _, word := range words {
+			cleanedWord := strings.ToLower(strings.TrimFunc(word, func(r rune) bool {
+				return !('a' <= r && r <= 'z' || '0' <= r && r <= '9')
+			}))
+			if cleanedWord != "" {
+				wordCounts[cleanedWord]++
+			}
+		}
+	}
+
+	type wordCount struct {
+		word  string
+		count int
+	}
+
+	var counts []wordCount
+	for word, count := range wordCounts {
+		counts = append(counts, wordCount{word, count})
+	}
+
+	quickSort(counts, 0, len(counts)-1)
+
+	for i := 0; i < 10 && i < len(counts); i++ {
+		fmt.Printf("%s: %d\n", counts[i].word, counts[i].count)
+	}
+}
+
+func quickSort(arr []wordCount, low, high int) {
+	if low < high {
+		pi := partition(arr, low, high)
+		quickSort(arr, low, pi-1)
+		quickSort(arr, pi+1, high)
+	}
+}
+
+func partition(arr []wordCount, low, high int) int {
+	pivot := arr[high].count
+	i := low - 1
+	for j := low; j < high; j++ {
+		if arr[j].count > pivot {
+			i++
+			arr[i], arr[j] = arr[j], arr[i]
+		}
+	}
+	arr[i+1], arr[high] = arr[high], arr[i+1]
+	return i + 1
+}
+#END wordfreq.go#
+
+#START filetreewalk.go#
+package main
+
+import (
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"sort"
+)
+
+type fileInfo struct {
+	size int64
+	path string
+}
+
+func main() {
+	if len(os.Args) < 2 {
+		os.Exit(1)
+	}
+	rootPath := os.Args[1]
+	var files []fileInfo
+
+	err := filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.Type().IsRegular() {
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			files = append(files, fileInfo{size: info.Size(), path: path})
+		}
+		return nil
+	})
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error walking directory:", err)
+		os.Exit(1)
+	}
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].size > files[j].size
+	})
+
+	for _, f := range files {
+		fmt.Printf("%d %s\n", f.size, f.path)
+	}
+}
+#END filetreewalk.go#
