@@ -10,6 +10,7 @@ TODO:
   - design docs and how emotional or rational they are.
   - [How we improved DuneAPI using DuckDB](blogpost/blogpost-improving-dune-API.md)
   - [I benchmarked 8 local LLMs writing Go on my Framework 13 AMD Strix Point](blogpost/benchmarking-local-llms-go-coding.md)
+  - [Gemma 4 vs Qwen3.5: benchmarking quantized local LLMs on Go coding](blogpost/local-llm-coding-harder-test.md)
   - [You Won't BELIEVE How Slow Local LLMs Are On My Framework 13 AMD Strix Point](blogpost/local-llm-performance-framework13.md)
 - link to some toy repos of mine
 - link to my "publications" (including the software patents while at DynamoDB) 
