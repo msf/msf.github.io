@@ -73,6 +73,12 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/control/status" && r.Method == "GET":
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{"online":%v}`, s.online.Load())
+	case r.URL.Path == "/control/scrape_n" && r.Method == "GET":
+		// How many scrape requests have been served so far. Lets the harness
+		// snapshot a "boundary" at phase transitions and distinguish buffered
+		// metrics (low scrape numbers) from online metrics (high numbers).
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"scrape_n":%d}`, s.scrapeN.Load())
 	default:
 		w.WriteHeader(404)
 	}
