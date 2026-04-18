@@ -121,7 +121,7 @@ while IFS= read -r line; do
 done <<< "$test_output"
 
 total=$((pass + fail + skip))
-echo "  tests: $pass pass, $fail fail, $skip skip (of $total)" >&2
+echo "  tests: $pass pass, $fail fail, $skip skip (of $total observed; max=10)" >&2
 
 # BUG 7 fix: when go test returns zero PASS/FAIL/SKIP lines the harness broke
 # (test binary crashed, wrong cwd, etc). Emit a distinct eval:FAIL status
@@ -132,6 +132,11 @@ if [ "$total" -eq 0 ]; then
   echo '{"score":0,"max":10,"summary":"eval:HARNESS_FAIL"}'
   exit 0
 fi
+
+# Fixed denominator: 10 tests total in the suite. If fewer were observed
+# (scraper crashed mid-suite, Go test binary died), count unrun tests as FAIL.
+# This prevents early-crash scrapers from looking better via truncated max.
+MAX=10
 
 # Build summary from test names (skip the TestScenario parent aggregate)
 test_results=""
@@ -145,4 +150,4 @@ while IFS= read -r line; do
   fi
 done <<< "$test_output"
 
-echo "{\"score\":$pass,\"max\":$total,\"summary\":\"${test_results# }\"}"
+echo "{\"score\":$pass,\"max\":$MAX,\"summary\":\"${test_results# }\",\"observed\":$total}"
