@@ -4,12 +4,11 @@ TODO:
 - add link to professional resume
 - mention specific systems that I worked on that I have a particular liking
 - have a section about my tech-stack and personal tech setup
-- publish some of my past talks in the form of posts:
-  - what is innovation?
-  - ["view under the hood" of dynamoDB](DynamoDB-a-view-under-the-hood.pdf) (from my personal memory)
-  - design docs and how emotional or rational they are.
 - link to some toy repos of mine
 - link to my "publications" (including the software patents while at DynamoDB)
+  - what is innovation?
+  - design docs and how emotional or rational they are.
+
 
 ## Posts
 
@@ -19,6 +18,7 @@ TODO:
 - [EVM Foundations (7-day study guide)](papers/EVM-Foundations.md) — 2025
 - [How we improved Dune API using DuckDB](blogpost/blogpost-improving-dune-API.md) — 2024
 - [Snowflake Paper and Architecture Review](papers/Snowflake-paper.md) — 2023
+- ["view under the hood" of dynamoDB](DynamoDB-a-view-under-the-hood.pdf) (from my personal memory)
 
 ## Conference Talks & Notes
 
