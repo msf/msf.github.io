@@ -12,8 +12,8 @@ TODO:
 
 ## Posts
 
-- [Gemma 4 vs Qwen3.5: benchmarking quantized local LLMs on Go coding](blogpost/local-llm-coding-harder-test.md) — Apr 2026
 - [Testing LLMs is hard, doubly hard when the testplan and code are vibecoded](blogpost/benchmarking_llms-v3-rebuild.md) — May 2026
+- [Gemma 4 vs Qwen3.5: benchmarking quantized local LLMs on Go coding](blogpost/local-llm-coding-harder-test.md) — Apr 2026
 - [This is how SLOW Local LLMs Are On My Framework 13 AMD Strix Point](blogpost/local-llm-performance-framework13.md) — Feb 2026
 - [I benchmarked 8 local LLMs writing Go on my Framework 13 AMD Strix Point](blogpost/benchmarking-local-llms-go-coding.md) — Feb 2025
 - [EVM Foundations (7-day study guide)](papers/EVM-Foundations.md) — 2025
