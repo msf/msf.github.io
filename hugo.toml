@@ -1,0 +1,5 @@
+baseURL = 'https://blog.mfilipe.eu/'
+languageCode = 'en-us'
+title = 'Miguel Filipe'
+[params]
+  description = 'Blog'
