@@ -1,9 +1,12 @@
 ---
-title: "Rebuilding the coding benchmark: Exam V2 $\rightarrow$ V3"
+title: "Rebuilding the coding benchmark: Exam V2 → V3"
 date: 2026-05-07T22:59:29+01:00
 ---
 
-# Rebuilding the coding benchmark: Exam V2 $\rightarrow$ V3
+# Rebuilding the coding benchmark: Exam V2 → V3
+
+*Part 4/4 — **Part 4** ← [Part 3](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/) ← [Part 2](https://blog.mfilipe.eu/post/local-llm-performance-framework13/) ← [Part 1](https://blog.mfilipe.eu/post/benchmarking-local-llms-go-coding/)*
+
 *May 2026 — co-authored with Gemma 4*
 
 The transition from Exam V2 to V3 was necessitated by the discovery that the V2 harness was providing invalid scoring data, masking model instability and quantization failures.

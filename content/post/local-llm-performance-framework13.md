@@ -7,7 +7,7 @@ date: 2026-04-10T21:01:28Z
 
 *February 2026 -- co-authored with Claude Opus 4.6.
 
-*Part 2/3 — [Part 3](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/) ← **Part 2** ← [Part 1](https://blog.mfilipe.eu/post/benchmarking-local-llms-go-coding/)*
+*Part 2/4 — [Part 4](https://blog.mfilipe.eu/post/benchmarking_llms-v3-rebuild/) ← [Part 3](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/) ← **Part 2** ← [Part 1](https://blog.mfilipe.eu/post/benchmarking-local-llms-go-coding/)*
 
 Yes, the title is clickbaity :>. Veritasium has [a great video](https://www.youtube.com/watch?v=S2xHZPH5Sng) about why clickbait is unreasonably effective and I've been dying to try it on a technical post. The irony is that the actual content is the opposite of clickbait -- every claim backed by a shell command, every number derived from first principles. If the title got you here, the data should keep you.
 
