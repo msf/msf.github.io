@@ -1,29 +1,7 @@
 # Miguel's tiny page
 
-TODO:
-- add link to professional resume
-- mention specific systems that I worked on that I have a particular liking
-- have a section about my tech-stack and personal tech setup
-- link to some toy repos of mine
-- link to my "publications" (including the software patents while at DynamoDB)
-  - what is innovation?
-  - design docs and how emotional or rational they are.
-
-
-## Posts
-
-- [Testing LLMs is hard, doubly hard when the testplan and code are vibecoded](blogpost/benchmarking_llms-v3-rebuild.md) — May 2026
-- [Gemma 4 vs Qwen3.5: benchmarking quantized local LLMs on Go coding](blogpost/local-llm-coding-harder-test.md) — Apr 2026
-- [This is how SLOW Local LLMs Are On My Framework 13 AMD Strix Point](blogpost/local-llm-performance-framework13.md) — Feb 2026
-- [I benchmarked 8 local LLMs writing Go on my Framework 13 AMD Strix Point](blogpost/benchmarking-local-llms-go-coding.md) — Feb 2025
-- [EVM Foundations (7-day study guide)](papers/EVM-Foundations.md) — 2025
-- [How we improved Dune API using DuckDB](blogpost/blogpost-improving-dune-API.md) — 2024
-- [Snowflake Paper and Architecture Review](papers/Snowflake-paper.md) — 2023
-- ["view under the hood" of dynamoDB](DynamoDB-a-view-under-the-hood.pdf) (from my personal memory)
-
-## Conference Talks & Notes
-
-- [QCon London 2020](talks/conferences/2020-qcon-london/) — Notes from various talks
+> **Moved to [blog.mfilipe.eu](https://blog.mfilipe.eu/).**
+> Posts, papers and talk notes all live there now.
 
 ## About me
 

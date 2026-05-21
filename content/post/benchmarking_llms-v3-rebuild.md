@@ -1,9 +1,9 @@
 ---
-title: "Rebuilding the coding benchmark: Exam V2 → V3"
+title: "Testing LLMs is hard, doubly hard when the testplan and code are vibecoded"
 date: 2026-05-07T22:59:29+01:00
 ---
 
-# Rebuilding the coding benchmark: Exam V2 → V3
+# Testing LLMs is hard, doubly hard when the testplan and code are vibecoded
 
 *Part 4/4 — **Part 4** ← [Part 3](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/) ← [Part 2](https://blog.mfilipe.eu/post/local-llm-performance-framework13/) ← [Part 1](https://blog.mfilipe.eu/post/benchmarking-local-llms-go-coding/)*
 
