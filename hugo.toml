@@ -33,6 +33,11 @@ title = 'Bluesky'
 url = 'https://bsky.app/profile/mfilipe.bsky.social'
 
 [[params.socialLinks]]
+icon = 'fa-brands fa-mastodon'
+title = 'Mastodon'
+url = 'https://hachyderm.io/@msf'
+
+[[params.socialLinks]]
 icon = 'fa-brands fa-x-twitter'
 title = 'Twitter / X'
 url = 'https://twitter.com/m3thos'
