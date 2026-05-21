@@ -28,6 +28,11 @@ title = 'GitHub'
 url = 'https://github.com/msf'
 
 [[params.socialLinks]]
+icon = 'fa-brands fa-bluesky'
+title = 'Bluesky'
+url = 'https://bsky.app/profile/mfilipe.bsky.social'
+
+[[params.socialLinks]]
 icon = 'fa-brands fa-x-twitter'
 title = 'Twitter / X'
 url = 'https://twitter.com/m3thos'
