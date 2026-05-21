@@ -49,4 +49,17 @@ article.post + article.post {
         margin: 0.5rem 0 0;
         list-style: none;
     }
+    /* The site title "Miguel Filipe" is already in the header and footer.
+     * In the bottom-band aside it's a third repetition — hide it. */
+    .page__aside .about__title {
+        display: none;
+    }
+    /* The aside__content block only repeats info that's already in the
+     * page body or post header (description, date, TOC).
+     * In the bottom-band layout it adds clutter without value — kill it
+     * and the divider that precedes it. */
+    .page__aside hr,
+    .page__aside .aside__content {
+        display: none;
+    }
 }

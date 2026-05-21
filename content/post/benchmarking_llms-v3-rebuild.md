@@ -3,8 +3,6 @@ title: "Testing LLMs is hard, doubly hard when the testplan and code are vibecod
 date: 2026-05-07T22:59:29+01:00
 ---
 
-# Testing LLMs is hard, doubly hard when the testplan and code are vibecoded
-
 *Part 4/4 — **Part 4** ← [Part 3](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/) ← [Part 2](https://blog.mfilipe.eu/post/local-llm-performance-framework13/) ← [Part 1](https://blog.mfilipe.eu/post/benchmarking-local-llms-go-coding/)*
 
 *May 2026 — co-authored with Gemma 4*
@@ -62,5 +60,6 @@ We assumed a shell-script wrapper was sufficient for complex behavioral testing.
 ***
 
 **Footnote:**
+- All models were run with **reasoning disabled**. Worth a follow-up exam with reasoning enabled to see how much it moves the needle — especially for Qwen 3.5 / 3.6, which lean heavily on chain-of-thought.
 - Still surprised Qwen 3.6 didn't score better; Gemma 4 totally kicked butt on this test.
 - *vibecoded on hermes + gemma4 models*

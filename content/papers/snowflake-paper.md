@@ -4,8 +4,6 @@ date = "2023-01-01"
 description = "Notes on the Snowflake SIGMOD paper and Andy Pavlo's CMU lecture."
 +++
 
-# Snowflake Paper and Architecture Review
-
 - [Snowflake Paper (PDF)](/papers/snowflake-sigmod-2016.pdf) — SIGMOD 2016
 - Andy Pavlo's lecture from spring 2023:
   - [YouTube lecture](https://www.youtube.com/watch?v=bveqnSk15JQ)
