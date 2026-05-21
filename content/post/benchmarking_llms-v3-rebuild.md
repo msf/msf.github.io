@@ -34,6 +34,8 @@ V3 is a complete rewrite of the evaluation logic, moving from shell-based orches
 - **Fixed Denominator**: Every run is measured against the full test suite (13 tests), regardless of whether the process crashes.
 - **Performance**: Evaluation time per submission dropped from **~60s to ~4s**.
 
+The full lab is in [`blogpost/benchmarking_llms/bench/exam_v3/`](https://github.com/msf/msf.github.io/tree/e99bd342d19164312c8b2706e24450b27bf01a46/blogpost/benchmarking_llms/bench/exam_v3) — the [prompt](https://github.com/msf/msf.github.io/blob/e99bd342d19164312c8b2706e24450b27bf01a46/blogpost/benchmarking_llms/bench/exam_v3/prompt.txt) given to the model, the [`scraper.go`](https://github.com/msf/msf.github.io/blob/e99bd342d19164312c8b2706e24450b27bf01a46/blogpost/benchmarking_llms/bench/exam_v3/scraper.go) file it has to modify, the [`grader_test.go`](https://github.com/msf/msf.github.io/blob/e99bd342d19164312c8b2706e24450b27bf01a46/blogpost/benchmarking_llms/bench/exam_v3/grader_test.go) suite it's scored against, and the [`eval.sh`](https://github.com/msf/msf.github.io/blob/e99bd342d19164312c8b2706e24450b27bf01a46/blogpost/benchmarking_llms/bench/exam_v3/eval.sh) driver that runs it. A reference solution is in [`scraper_solution.go`](https://github.com/msf/msf.github.io/blob/e99bd342d19164312c8b2706e24450b27bf01a46/blogpost/benchmarking_llms/bench/exam_v3/scraper_solution.go).
+
 ## Results (Clean Rerun)
 *Note: All models were re-run to ensure a clean baseline on the new harness.*
 
