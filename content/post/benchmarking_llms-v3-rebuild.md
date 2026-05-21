@@ -1,9 +1,12 @@
 ---
-title: "Rebuilding the coding benchmark: Exam V2 $\rightarrow$ V3"
+title: "Rebuilding the coding benchmark: Exam V2 → V3"
 date: 2026-05-07T22:59:29+01:00
 ---
 
-# Rebuilding the coding benchmark: Exam V2 $\rightarrow$ V3
+# Rebuilding the coding benchmark: Exam V2 → V3
+
+*Part 4/4 — **Part 4** ← [Part 3](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/) ← [Part 2](https://blog.mfilipe.eu/post/local-llm-performance-framework13/) ← [Part 1](https://blog.mfilipe.eu/post/benchmarking-local-llms-go-coding/)*
+
 *May 2026 — co-authored with Gemma 4*
 
 The transition from Exam V2 to V3 was necessitated by the discovery that the V2 harness was providing invalid scoring data, masking model instability and quantization failures.
@@ -30,6 +33,8 @@ V3 is a complete rewrite of the evaluation logic, moving from shell-based orches
 - **Deterministic scoring**: Uses `go test -race -json` and `jq` to parse results.
 - **Fixed Denominator**: Every run is measured against the full test suite (13 tests), regardless of whether the process crashes.
 - **Performance**: Evaluation time per submission dropped from **~60s to ~4s**.
+
+The harness is [`exam-driver.go`](https://github.com/msf/msf.github.io/blob/e99bd342d19164312c8b2706e24450b27bf01a46/blogpost/benchmarking_llms/exam-driver.go) — a generic runner that submits the prompt to llama-swap over HTTP, saves the response, invokes the per-exam evaluator, and collects the score. The exam itself lives in [`blogpost/benchmarking_llms/bench/exam_v3/`](https://github.com/msf/msf.github.io/tree/e99bd342d19164312c8b2706e24450b27bf01a46/blogpost/benchmarking_llms/bench/exam_v3): the [prompt](https://github.com/msf/msf.github.io/blob/e99bd342d19164312c8b2706e24450b27bf01a46/blogpost/benchmarking_llms/bench/exam_v3/prompt.txt) given to the model, the [`scraper.go`](https://github.com/msf/msf.github.io/blob/e99bd342d19164312c8b2706e24450b27bf01a46/blogpost/benchmarking_llms/bench/exam_v3/scraper.go) file it has to modify, the [`grader_test.go`](https://github.com/msf/msf.github.io/blob/e99bd342d19164312c8b2706e24450b27bf01a46/blogpost/benchmarking_llms/bench/exam_v3/grader_test.go) suite it's scored against, and the [`eval.sh`](https://github.com/msf/msf.github.io/blob/e99bd342d19164312c8b2706e24450b27bf01a46/blogpost/benchmarking_llms/bench/exam_v3/eval.sh) scorer wrapping the grader. A reference solution is in [`scraper_solution.go`](https://github.com/msf/msf.github.io/blob/e99bd342d19164312c8b2706e24450b27bf01a46/blogpost/benchmarking_llms/bench/exam_v3/scraper_solution.go).
 
 ## Results (Clean Rerun)
 *Note: All models were re-run to ensure a clean baseline on the new harness.*
