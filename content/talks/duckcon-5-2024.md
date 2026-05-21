@@ -8,6 +8,6 @@ A talk I gave at [DuckCon #5](https://duckdb.org/events/2024/08/15/duckcon5/) in
 
 {{< youtube yNL4MPbOuZc >}}
 
-- 📄 [Slides (PDF)](https://blobs.duckdb.org/events/duckcon5/miguel-filipe-delighting-users-with-restful-apis-and-duckdb.pdf)
+- 📄 [Slides (PDF)](/talks/duckcon-5-2024.pdf) ([original on duckdb.org](https://blobs.duckdb.org/events/duckcon5/miguel-filipe-delighting-users-with-restful-apis-and-duckdb.pdf))
 - 📅 [DuckCon #5 — event page](https://duckdb.org/events/2024/08/15/duckcon5/)
 - 🎥 [YouTube recording](https://www.youtube.com/watch?v=yNL4MPbOuZc)
