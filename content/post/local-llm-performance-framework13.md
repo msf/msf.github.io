@@ -3,8 +3,6 @@ title: "WHY Are Local LLMs So Slow On My Framework 13 AMD Strix Point"
 date: 2026-04-10T21:01:28Z
 ---
 
-# WHY Are Local LLMs So Slow On My Framework 13 AMD Strix Point
-
 *February 2026 -- co-authored with Claude Opus 4.6.
 
 *Part 2/4 — [Part 4](https://blog.mfilipe.eu/post/benchmarking_llms-v3-rebuild/) ← [Part 3](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/) ← **Part 2** ← [Part 1](https://blog.mfilipe.eu/post/benchmarking-local-llms-go-coding/)*

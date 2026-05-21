@@ -4,8 +4,6 @@ date = "2025-01-01"
 description = "Mental models of EVM execution, storage, state, and gas — validated by real traces on your node."
 +++
 
-# EVM Foundations (Days 1–7)
-
 > Goal: build solid mental models of EVM execution, storage, state, and gas—validated by small, real traces on your node.
 
 ---

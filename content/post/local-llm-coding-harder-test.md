@@ -3,8 +3,6 @@ title: "Gemma 4 vs Qwen3.5: benchmarking quantized local LLMs on Go coding"
 date: 2026-04-10T17:04:51+01:00
 ---
 
-# Gemma 4 vs Qwen3.5: benchmarking quantized local LLMs on Go coding
-
 *April 2026*[^1]
 
 *Part 3/4 — [Part 4](https://blog.mfilipe.eu/post/benchmarking_llms-v3-rebuild/) ← **Part 3** ← [Part 2](https://blog.mfilipe.eu/post/local-llm-performance-framework13/) ← [Part 1](https://blog.mfilipe.eu/post/benchmarking-local-llms-go-coding/)*

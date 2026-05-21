@@ -3,8 +3,6 @@ title: "How we've improved Dune API using DuckDB"
 date: 2024-08-01T12:22:38-07:00
 ---
 
-# How we've improved Dune API using DuckDB
-
 At [Dune](https://dune.com), we value our customers’ feedback and are committed to continuously improving our services. This is the story of how a simple, prioritized feature request for [DuneAPI](https://dune.com/product/api) —supporting query result pagination for larger results—evolved into a comprehensive improvement involving the adoption of [DuckDB](https://duckdb.org) at Dune.
 
 [![Dune API](blogpost-duneapi-build-tools.png)](https://dune.com/product/api)
