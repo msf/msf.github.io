@@ -8,7 +8,7 @@ A joint talk with [Jonas Irgens Kylling](https://github.com/jirgens) at [Trino F
 
 {{< youtube sCJncarnGdU >}}
 
-- 📄 [Slides (PDF)](/talks/trino-fest-2023-dunesql.pdf) ([original on trino.io](https://trino.io/assets/blog/trino-fest-2023/TrinoFest2023Dune.pdf))
+- 📄 [Slides (PDF)](/talks/trino-fest-2023-dunesql.pdf)
 - 📝 [Trino blog write-up](https://trino.io/blog/2023/07/14/trino-fest-2023-dune.html)
 - 🎥 [YouTube recording](https://www.youtube.com/watch?v=sCJncarnGdU)
 - 👥 Co-presented with Jonas Irgens Kylling; contributions from Ryan Duan

@@ -6,10 +6,10 @@ description = "Notes on the Snowflake SIGMOD paper and Andy Pavlo's CMU lecture.
 
 # Snowflake Paper and Architecture Review
 
-- [Snowflake Paper](https://www.snowflake.com/wp-content/uploads/2019/06/Snowflake_SIGMOD.pdf)
-- Andi Pavlo's lecture from spring 2023:
-  - [Youtube, Lecture](https://www.youtube.com/watch?v=bveqnSk15JQ)
-  - [Slides] (https://15721.courses.cs.cmu.edu/spring2023/slides/21-snowflake.pdf)
+- [Snowflake Paper (PDF)](/papers/snowflake-sigmod-2016.pdf) — SIGMOD 2016
+- Andy Pavlo's lecture from spring 2023:
+  - [YouTube lecture](https://www.youtube.com/watch?v=bveqnSk15JQ)
+  - [Slides (PDF)](/papers/cmu-15721-spring2023-snowflake.pdf) — CMU 15-721
     
 ## Intro
 

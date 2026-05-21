@@ -39,7 +39,7 @@ description = "Mental models of EVM execution, storage, state, and gas — valid
 
 **Read (targeted)**
 
-* Yellow Paper PDF: [https://ethereum.github.io/yellowpaper/paper.pdf](https://ethereum.github.io/yellowpaper/paper.pdf)
+* Yellow Paper PDF: [/papers/ethereum-yellow-paper.pdf](/papers/ethereum-yellow-paper.pdf) (mirrored locally; upstream at ethereum.github.io/yellowpaper)
   Focus: State transition (transactions→blocks), Execution model, Gas, Memory, and the Opcode appendix.
 
 **Output**
