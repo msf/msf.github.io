@@ -2,6 +2,15 @@
  * Loaded after risotto.css.
  */
 
+/* Section list pages (post/papers/talks): visually separate entries.
+ * Without this, each article's summary runs straight into the next
+ * article's heading. */
+article.post + article.post {
+    margin-top: 2.5rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--off-fg);
+}
+
 /* Move the "about" sidebar from the right column to a full-width footer band
  * below the main content. Reclaims horizontal space on wide screens. */
 @media (min-width: 45rem) {
