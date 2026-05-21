@@ -1,5 +1,57 @@
 baseURL = 'https://blog.mfilipe.eu/'
 languageCode = 'en-us'
 title = 'Miguel Filipe'
+theme = 'risotto'
+author = 'Miguel Filipe'
+copyright = '© Miguel Filipe'
+
+sectionPagesMenu = 'main'
+
+[pagination]
+pagerSize = 20
+
 [params]
-  description = 'Blog'
+description = "Miguel Filipe's blog — distributed systems, local LLMs, self-hosting."
+noindex = false
+
+[params.theme]
+palette = 'base16-dark'
+
+[params.about]
+title = 'Miguel Filipe'
+description = 'Tech Lead @ Dune. Distributed systems, local LLMs, self-hosting. Lisbon.'
+logo = '🐢'
+
+[[params.socialLinks]]
+icon = 'fa-brands fa-github'
+title = 'GitHub'
+url = 'https://github.com/msf'
+
+[[params.socialLinks]]
+icon = 'fa-brands fa-x-twitter'
+title = 'Twitter / X'
+url = 'https://twitter.com/m3thos'
+
+[[params.socialLinks]]
+icon = 'fa-solid fa-envelope'
+title = 'Email'
+url = 'mailto:migfilipe@proton.me'
+
+[menu]
+  [[menu.main]]
+    identifier = 'about'
+    name = 'About'
+    url = '/about/'
+    weight = 10
+
+[taxonomies]
+category = 'categories'
+tag = 'tags'
+
+[markup.goldmark.renderer]
+unsafe = true
+
+[markup.tableOfContents]
+startLevel = 2
+endLevel = 3
+ordered = false
