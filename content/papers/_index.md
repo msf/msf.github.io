@@ -1,6 +1,6 @@
 +++
-title = "Papers"
-description = "Technical papers and notes."
+title = "Papers & Talks"
+description = "Talks I've given, papers and slides, and conference notes."
 +++
 
-Papers and notes I've worked through.
+Talks I've given — recorded where a video exists, slides otherwise — plus notes on papers and conferences worth keeping.

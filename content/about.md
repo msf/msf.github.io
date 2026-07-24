@@ -82,5 +82,4 @@ Books and authors I heartily recommend:
 
 ## Other things on this site
 
-- [Papers](/papers/) — notes on papers I've read (incl. ["A view under the hood" of DynamoDB](/papers/dynamodb-view-under-the-hood/)).
-- [Talks](/talks/) — notes from conferences I've attended.
+- [Papers & Talks](/papers/) — talks I've given, slides, and notes (incl. ["A view under the hood" of DynamoDB](/papers/dynamodb-view-under-the-hood/)).

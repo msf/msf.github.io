@@ -2,6 +2,7 @@
 title = "2014 — Linux Internals"
 date = "2014-10-15"
 description = "A talk on Linux internals and using systems knowledge to solve production problems."
+aliases = ["/talks/2014-linux-internals/"]
 +++
 
 A 2014 talk on Linux internals and why mastering the tools matters for production engineering.

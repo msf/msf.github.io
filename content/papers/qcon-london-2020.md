@@ -2,6 +2,7 @@
 title = "QCon London 2020"
 date = "2020-03-04"
 description = "Notes from QCon London 2020 — three days of talks on distributed systems, ML, engineering culture, and more."
+aliases = ["/talks/qcon-london-2020/"]
 +++
 
 Notes I took at QCon London 2020 — three days of talks on distributed systems, ML, engineering culture, and more. Raw, unedited, captured live.

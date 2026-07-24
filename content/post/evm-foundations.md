@@ -1,7 +1,8 @@
 +++
-title = "2025 — EVM Foundations (7-day study guide)"
-date = "2025-01-01"
+title = "EVM Foundations — a 7-day study guide"
+date = "2025-10-01"
 description = "Mental models of EVM execution, storage, state, and gas — validated by real traces on your node."
+aliases = ["/papers/evm-foundations/"]
 +++
 
 > Goal: build solid mental models of EVM execution, storage, state, and gas—validated by small, real traces on your node.

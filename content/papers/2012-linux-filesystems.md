@@ -2,6 +2,7 @@
 title = "2012 — Linux File Systems"
 date = "2012-04-01"
 description = "A terse overview of journaling, allocation, ext4, and Btrfs."
+aliases = ["/talks/2012-linux-filesystems/"]
 +++
 
 A terse overview of Linux file systems: journaling, block and extent allocation, mature file systems, ext4, and Btrfs.

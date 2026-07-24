@@ -2,6 +2,7 @@
 title = "DuckCon #5: Delighting users with RESTful APIs and DuckDB"
 date = "2024-08-15"
 description = "Talk at DuckCon #5 in Seattle — how we use DuckDB to build a delightful RESTful API at Dune."
+aliases = ["/talks/duckcon-5-2024/"]
 +++
 
 A talk I gave at [DuckCon #5](https://duckdb.org/events/2024/08/15/duckcon5/) in Seattle (August 2024) — how we use DuckDB at Dune to serve blockchain data through a RESTful API, the tradeoffs we made, and what worked.

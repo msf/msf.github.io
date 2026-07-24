@@ -4,7 +4,7 @@ title = "Miguel Filipe"
 
 I'm Miguel — Tech Lead at Dune Analytics. I write about distributed systems, local LLMs, self-hosting, and whatever else I'm currently debugging at 1am.
 
-Most of the writing lives under **[Posts](/post/)**. Paper notes are under **[Papers](/papers/)** and conference notes under **[Talks](/talks/)**. More about me on the **[About](/about/)** page.
+Most of the writing lives under **[Posts](/post/)**. Talks I've given, slides, and conference notes are under **[Papers & Talks](/papers/)**. More about me on the **[About](/about/)** page.
 
 ## Recent
 

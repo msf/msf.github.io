@@ -2,6 +2,7 @@
 title = "2018 — DynamoDB: a view under the hood"
 date = "2018-01-01"
 description = "Internals of AWS DynamoDB — partitions, replication, storage, request path. Talk slides from my time on the team."
+aliases = ["/talks/dynamodb-view-under-the-hood/"]
 +++
 
 A talk I gave on the internals of AWS DynamoDB, from my time on the team: partitions, replication, the request path, and how storage actually works under the hood. From my personal memory — slides are the artifact, not the talk recording.
