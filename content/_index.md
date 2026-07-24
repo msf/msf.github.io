@@ -8,6 +8,7 @@ Most of the writing lives under **[Posts](/post/)**. Paper notes are under **[Pa
 
 ## Recent
 
+- *Jul 2026* — [DEBS 2026: DuneCP, an event-driven control plane for DuneSQL](/post/debs-2026-dunecp/)
 - *May 2026* — [Testing LLMs is hard, doubly hard when the testplan and code are vibecoded](/post/benchmarking_llms-v3-rebuild/)
 - *Apr 2026* — [Gemma 4 vs Qwen3.5: benchmarking quantized local LLMs on Go coding](/post/local-llm-coding-harder-test/)
 - *Feb 2026* — [WHY Are Local LLMs So Slow On My Framework 13 AMD Strix Point](/post/local-llm-performance-framework13/)
