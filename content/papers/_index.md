@@ -1,6 +1,6 @@
 +++
 title = "Papers"
-description = "Technical papers, presentations, and notes."
+description = "Technical papers and notes."
 +++
 
-Papers, presentations, and notes I've worked through.
+Papers and notes I've worked through.

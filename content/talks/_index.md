@@ -1,6 +1,6 @@
 +++
 title = "Talks"
-description = "Notes from conferences I've attended."
+description = "Talks, slides, and conference notes."
 +++
 
-Notes from conferences and talks I've found worth keeping.
+Talks, slides, and notes from conferences I've attended or spoken at.
