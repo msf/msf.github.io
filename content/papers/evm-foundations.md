@@ -1,5 +1,5 @@
 +++
-title = "EVM Foundations (7-day study guide)"
+title = "2025 — EVM Foundations (7-day study guide)"
 date = "2025-01-01"
 description = "Mental models of EVM execution, storage, state, and gas — validated by real traces on your node."
 +++

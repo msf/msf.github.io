@@ -1,5 +1,5 @@
 +++
-title = "Snowflake Paper and Architecture Review"
+title = "2023 — Snowflake Paper and Architecture Review"
 date = "2023-01-01"
 description = "Notes on the Snowflake SIGMOD paper and Andy Pavlo's CMU lecture."
 +++

@@ -30,5 +30,5 @@ I did not explain Dune itself well enough. In particular, I failed to make the c
 
 That context matters. Without it, the operational surface can look like a collection of small jobs rather than the second system required to keep a large data platform healthy.
 
-- 📄 [Slides (PDF)](/talks/debs-2026-dunecp.pdf)
+- 📄 [Slides (PDF)](/papers/debs-2026-dunecp.pdf)
 - 📅 [DEBS 2026 keynote page](https://2026.debs.org/keynote-speakers/#keynote4)

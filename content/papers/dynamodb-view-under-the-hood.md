@@ -1,5 +1,5 @@
 +++
-title = "DynamoDB: a view under the hood"
+title = "2018 — DynamoDB: a view under the hood"
 date = "2018-01-01"
 description = "Internals of AWS DynamoDB — partitions, replication, storage, request path. Talk slides from my time on the team."
 +++
