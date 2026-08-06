@@ -1,0 +1,358 @@
+#!/usr/bin/env bash
+set -uo pipefail
+#
+# exam_v3 one-shot sweep: ROCmFP4 vs Unsloth vs Gemma, on this laptop.
+#
+#   cell A  rocmfp4-moe-35b-a3b   ROCmFP4 ACE-SABER 19.0 GB, HIP, container :18080
+#   cell B  qwen36-moe-unsloth    Unsloth UD-Q4_K_XL 22.9 GB, Vulkan, llama-swap :8090
+#   cell C  gemma4-26b-qat        Gemma 4 26B-A4B QAT 14.2 GB, Vulkan, llama-swap :8090
+#
+# A vs B is the question: same model family, same MTP, different quant+tune.
+# C is the quality reference — it topped the April exam_v3 table at 11/13.
+#
+# Uses the committed exam_v3 prompt, evaluator and driver unchanged. No new
+# harness. Scores are /13 from `go test -race -json` with a fixed denominator.
+#
+# Usage:
+#   ./sweep-exam3-rocmfp4.sh                      # 3 cells x seeds 42 123
+#   CELLS=A SEEDS=42 ./sweep-exam3-rocmfp4.sh     # one cell, one seed
+#
+# Idempotent: a cell/seed with an existing result.json is skipped, so an
+# interrupted sweep resumes.
+#
+# --- Deviations from the April 2026 clean rerun, read before comparing ---
+#
+# 1. Reasoning is ON here; the April run used `--reasoning off`. The current
+#    llama-swap entries are the reasoning-enabled ones and that is how the box
+#    actually serves. `*-nothink` aliases exist if you want the old mode.
+# 2. Gemma is the QAT rebuild (gemma-4-26B-A4B-it-qat-UD-Q4_K_XL, 14.2 GB), not
+#    April's MXFP4 build. Same family, different weights — that is why it is
+#    being re-run rather than quoted from the old table.
+# 3. Serving stack moved (llama.cpp release, llama-swap v241, MTP drafters).
+#
+# So: treat the April numbers as historical context, not as a control. Cell C
+# is the control for this run.
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LAB_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+BENCH_DIR="$LAB_ROOT/bench/exam_v3"
+DRIVER="$LAB_ROOT/exam-driver.go"
+RESULTS_DIR="${RESULTS_DIR:-$LAB_ROOT/artifacts/results/exam_v3}"
+RUN_ID="${RUN_ID:-$(date +%Y%m%d-%H%M%S)}"
+LOG_ROOT="${LOG_ROOT:-$LAB_ROOT/artifacts/logs/exam_v3/$RUN_ID}"
+STATUS_TSV="$LOG_ROOT/status.tsv"
+
+SEEDS="${SEEDS:-42 123}"
+CELLS="${CELLS:-A B C}"
+
+# Matches the April clean rerun so the numbers stay on the same scale.
+MAX_TOKENS="${MAX_TOKENS:-8192}"
+TEMP="${TEMP:-1.0}"
+ATTEMPT_TIMEOUT="${ATTEMPT_TIMEOUT:-15m}"
+
+# Hard stop for the whole sweep. Partial results are kept.
+SWEEP_BUDGET_S="${SWEEP_BUDGET_S:-14400}"   # 4h
+SWEEP_DEADLINE=$(( $(date +%s) + SWEEP_BUDGET_S ))
+
+SWAP_ENDPOINT="${SWAP_ENDPOINT:-http://127.0.0.1:8090}"
+
+CONTAINER_NAME="${CONTAINER_NAME:-exam3-rocmfp4}"
+CONTAINER_PORT="${CONTAINER_PORT:-18080}"
+CONTAINER_ENDPOINT="http://127.0.0.1:$CONTAINER_PORT"
+CONTAINER_ALIAS="rocmfp4-moe"
+IMAGE="${IMAGE:-local/rocmfpx-qwopus:gfx1150}"
+MODEL_DIR="${MODEL_DIR:-/mnt/ai-models/llama/models/Qwen3.6-35B-A3B-ACE-SABER-ROCmFP4}"
+MODEL_FILE="${MODEL_FILE:-Qwen3.6-35B-A3B-NSC-ACE-SABER-MTP-F16-to-ROCmFP4-STRIX_LEAN.gguf}"
+
+# cell -> "display|endpoint|served-model-name"
+cell_spec() {
+  case "$1" in
+    A) echo "rocmfp4-moe-35b-a3b|$CONTAINER_ENDPOINT|$CONTAINER_ALIAS" ;;
+    B) echo "qwen36-moe-unsloth|$SWAP_ENDPOINT|qwen36-moe" ;;
+    C) echo "gemma4-26b-qat|$SWAP_ENDPOINT|gemma4-26b-qat-mtp" ;;
+    *) return 1 ;;
+  esac
+}
+
+FIM_WAS_ACTIVE=0
+mkdir -p "$LOG_ROOT" "$RESULTS_DIR"
+
+log()  { printf '%s  %s\n' "$(date +%H:%M:%S)" "$*" | tee -a "$LOG_ROOT/sweep.log" >&2; }
+fail() { log "ABORT: $*"; exit 1; }
+
+out_of_time() { [ "$(date +%s)" -ge "$SWEEP_DEADLINE" ]; }
+
+# --- environment control -----------------------------------------------------
+
+swap_unload() {
+  curl -fsS -m 30 -X POST "$SWAP_ENDPOINT/api/models/unload" >/dev/null 2>&1
+}
+
+container_down() {
+  docker stop --time 20 "$CONTAINER_NAME" >/dev/null 2>&1
+  docker rm "$CONTAINER_NAME" >/dev/null 2>&1
+  return 0
+}
+
+cleanup() {
+  local rc=$?
+  log "cleanup: tearing down"
+  container_down
+  swap_unload || true
+  if [ "$FIM_WAS_ACTIVE" = "1" ]; then
+    systemctl --user start llama-fim.service >/dev/null 2>&1
+    log "cleanup: llama-fim restored -> $(systemctl --user is-active llama-fim.service)"
+  fi
+  log "cleanup: done (exit $rc)"
+}
+trap cleanup EXIT INT TERM
+
+# --- preflight ---------------------------------------------------------------
+
+# The evaluator must score the known-good reference solution 13/13. If it does
+# not, every model score this sweep produces is meaningless. ~10s.
+preflight_grader() {
+  local probe response
+  probe=$(mktemp -d)
+  python3 - "$BENCH_DIR" "$probe" <<'PY'
+import os, re, sys
+bench, probe = sys.argv[1:3]
+sol = open(os.path.join(bench, "scraper_solution.go")).read()
+skel = open(os.path.join(bench, "scraper.go")).read()
+
+# The response the driver would have received: solution's NewScraper +
+# implementation, plus the skeleton's types/interfaces/main, as one file.
+start = skel.index("// --- HTTP implementations ---")
+merged = sol.rstrip() + "\n\n" + skel[start:]
+
+# Union of both import blocks, minus what the merged body no longer uses.
+imports = set()
+for src in (sol, skel):
+    m = re.search(r"import \(\n(.*?)\n\)", src, re.S)
+    if m:
+        imports.update(l.strip().strip('"') for l in m.group(1).splitlines() if l.strip())
+body = merged.split(")", 1)[1] if merged.startswith("import") else merged
+keep = sorted(i for i in imports
+              if re.search(r"\b%s\." % re.escape(i.split("/")[-1].replace("/v2", "")), merged))
+merged = re.sub(r"import \(\n.*?\n\)",
+                "import (\n" + "\n".join('\t"%s"' % i for i in keep) + "\n)",
+                merged, count=1, flags=re.S)
+
+with open(os.path.join(probe, "response.txt"), "w") as f:
+    f.write("```go\n" + merged + "\n```\n")
+PY
+  response="$probe/response.txt"
+  [ -s "$response" ] || { rm -rf "$probe"; fail "preflight: could not build reference response"; }
+
+  local out score
+  out=$(bash "$BENCH_DIR/eval.sh" "$response" "$probe" 2>"$LOG_ROOT/preflight-grader.log")
+  score=$(printf '%s' "$out" | python3 -c 'import json,sys; d=json.load(sys.stdin); print("%d/%d"%(d["score"],d["max"]))' 2>/dev/null)
+  rm -rf "$probe"
+  [ "$score" = "13/13" ] || fail "preflight: evaluator scored reference solution $score, expected 13/13 (see $LOG_ROOT/preflight-grader.log)"
+  log "preflight: evaluator scores reference solution 13/13"
+}
+
+preflight() {
+  command -v docker >/dev/null || fail "docker missing"
+  command -v go >/dev/null     || fail "go missing"
+  command -v jq >/dev/null     || fail "jq missing (eval.sh needs it)"
+  [ -f "$BENCH_DIR/prompt.txt" ] || fail "missing $BENCH_DIR/prompt.txt"
+  [ -f "$BENCH_DIR/eval.sh" ]    || fail "missing $BENCH_DIR/eval.sh"
+  [ -f "$DRIVER" ]               || fail "missing $DRIVER"
+
+  case " $CELLS " in
+    *" A "*)
+      [ -f "$MODEL_DIR/$MODEL_FILE" ] || fail "ROCmFP4 model missing: $MODEL_DIR/$MODEL_FILE"
+      docker image inspect "$IMAGE" >/dev/null 2>&1 || fail "image missing: $IMAGE"
+      ;;
+  esac
+
+  preflight_grader
+
+  go build -o /dev/null "$DRIVER" || fail "exam-driver.go does not build"
+  log "preflight: driver builds"
+
+  if systemctl --user is-active --quiet llama-fim.service; then
+    FIM_WAS_ACTIVE=1
+    systemctl --user stop llama-fim.service
+    log "preflight: llama-fim stopped (restored on exit)"
+  fi
+
+  container_down
+  swap_unload || true
+  sleep 3
+  log "preflight: free mem $(free -g | awk '/^Mem:/{print $7}') GiB"
+}
+
+# --- cell A: ROCmFP4 container ----------------------------------------------
+
+start_container() {
+  log "cell A: starting $CONTAINER_NAME ($MODEL_FILE)"
+  docker run -d --rm --name "$CONTAINER_NAME" \
+    --device=/dev/kfd --device=/dev/dri \
+    --group-add video --group-add render \
+    --security-opt seccomp=unconfined \
+    -v "$MODEL_DIR:/models:ro" \
+    -p "127.0.0.1:$CONTAINER_PORT:$CONTAINER_PORT" \
+    "$IMAGE" \
+    -m "/models/$MODEL_FILE" \
+    --alias "$CONTAINER_ALIAS" \
+    --host 0.0.0.0 --port "$CONTAINER_PORT" \
+    --flash-attn on --cache-type-k q8_0 --cache-type-v q8_0 \
+    --gpu-layers 99 --no-mmap --ctx-checkpoints 0 --jinja --parallel 1 \
+    --ctx-size 131072 --reasoning on --reasoning-budget 8192 \
+    --predict 32768 --metrics --device ROCm0 \
+    --spec-type draft-mtp --spec-draft-ngl all \
+    --spec-draft-type-k q8_0 --spec-draft-type-v q8_0 --spec-draft-n-max 3 \
+    >"$LOG_ROOT/container-id" 2>"$LOG_ROOT/container-start.err" \
+    || fail "docker run failed: $(cat "$LOG_ROOT/container-start.err")"
+
+  local i
+  for i in $(seq 1 90); do
+    if curl -fsS -m 5 "$CONTAINER_ENDPOINT/health" 2>/dev/null | grep -q '"ok"'; then
+      log "cell A: healthy"
+      docker logs "$CONTAINER_NAME" >"$LOG_ROOT/container-load.log" 2>&1
+      return 0
+    fi
+    docker ps --format '{{.Names}}' | grep -q "^$CONTAINER_NAME$" \
+      || { docker logs "$CONTAINER_NAME" >"$LOG_ROOT/container-load.log" 2>&1
+           fail "container exited during load; see $LOG_ROOT/container-load.log"; }
+    sleep 5
+  done
+  fail "container did not become healthy within 450s"
+}
+
+# --- attempts ----------------------------------------------------------------
+
+# Cold prefill measured 1.07 t/s vs 13.10 warm. One throwaway request per cell
+# absorbs the load+warm cost so wall_s reflects generation, not model loading.
+warmup() {
+  local endpoint="$1" model="$2"
+  log "  warm-up (discarded)"
+  curl -fsS -m 600 "$endpoint/v1/chat/completions" \
+    -H 'content-type: application/json' \
+    -d "{\"model\":\"$model\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with OK.\"}],\"max_tokens\":8}" \
+    >"$LOG_ROOT/warmup-$model.json" 2>&1 \
+    || log "  WARN warm-up request failed (continuing)"
+}
+
+record_row() {
+  local cell="$1" display="$2" served="$3" seed="$4" rj="$5" celllog="$6"
+  python3 - "$cell" "$display" "$served" "$seed" "$rj" "$celllog" "$MAX_TOKENS" "$TEMP" >>"$STATUS_TSV" <<'PY'
+import json, sys, datetime
+cell, display, served, seed, path, celllog, maxtok, temp = sys.argv[1:9]
+d = json.load(open(path))
+e = d.get("eval", {})
+summary = (e.get("summary") or "").replace("\n", " ").replace("\t", " ")
+print("\t".join(str(x) for x in [
+    datetime.datetime.now().isoformat(timespec="seconds"),
+    cell, display, served, seed,
+    e.get("score", ""), e.get("max", ""),
+    d.get("tokens", ""),
+    round(d.get("tps") or 0, 2),
+    round(d.get("wall_s") or 0, 1),
+    maxtok, temp,
+    summary, celllog,
+]))
+PY
+  tail -1 "$STATUS_TSV" | awk -F'\t' '{printf "  -> %s/%s  %s tok  %s t/s  %ss\n",$6,$7,$8,$9,$10}' >&2
+}
+
+run_attempt() {
+  local cell="$1" display="$2" endpoint="$3" served="$4" seed="$5"
+  local outdir="$RESULTS_DIR/$display/seed$seed"
+  local celllog="$LOG_ROOT/${display}-seed${seed}.log"
+  mkdir -p "$outdir"
+
+  if [ -f "$outdir/result.json" ]; then
+    log "  $display seed$seed: already present, skipping"
+    record_row "$cell" "$display" "$served" "$seed" "$outdir/result.json" "$celllog"
+    return 0
+  fi
+
+  log "  $display seed$seed: running (timeout $ATTEMPT_TIMEOUT)"
+  local tmpout rc
+  tmpout=$(mktemp -d)
+  go run "$DRIVER" \
+    -endpoint "$endpoint" \
+    -prompt "$BENCH_DIR/prompt.txt" \
+    -eval "$BENCH_DIR/eval.sh" \
+    -out "$tmpout" \
+    -seed "$seed" \
+    -temp "$TEMP" \
+    -max-tokens "$MAX_TOKENS" \
+    -timeout "$ATTEMPT_TIMEOUT" \
+    "$served" >"$celllog" 2>&1
+  rc=$?
+
+  if [ -d "$tmpout/$served" ]; then
+    cp -a "$tmpout/$served"/. "$outdir/" 2>/dev/null
+  fi
+  rm -rf "$tmpout"
+
+  if [ ! -f "$outdir/result.json" ]; then
+    log "  TRIPWIRE $display seed$seed: no result.json (driver rc=$rc); see $celllog"
+    printf '%s\t%s\t%s\t%s\tNO_RESULT\tdriver_rc=%s\n' \
+      "$(date -Is)" "$cell" "$display" "$seed" "$rc" >>"$LOG_ROOT/alerts.log"
+    return 1
+  fi
+  record_row "$cell" "$display" "$served" "$seed" "$outdir/result.json" "$celllog"
+}
+
+# --- main --------------------------------------------------------------------
+
+printf 'ts\tcell\tdisplay\tserved_model\tseed\tscore\tmax\ttokens\ttps\twall_s\tmax_tokens\ttemp\tsummary\tcell_log\n' >"$STATUS_TSV"
+
+{
+  echo "run_id:      $RUN_ID"
+  echo "git_sha:     $(git -C "$LAB_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+  echo "exam:        exam_v3 (one-shot, /13, unchanged prompt+evaluator)"
+  echo "cells:       $CELLS"
+  echo "seeds:       $SEEDS"
+  echo "max_tokens:  $MAX_TOKENS"
+  echo "temp:        $TEMP  (driver always sends it; April rerun also used 1.0)"
+  echo "attempt_to:  $ATTEMPT_TIMEOUT"
+  echo "budget_s:    $SWEEP_BUDGET_S"
+  echo "reasoning:   ON for all cells (April rerun used --reasoning off)"
+  echo "cellA:       $MODEL_DIR/$MODEL_FILE ($IMAGE, HIP gfx1150)"
+  echo "cellB:       llama-swap qwen36-moe (Unsloth UD-Q4_K_XL, Vulkan)"
+  echo "cellC:       llama-swap gemma4-26b-qat-mtp (QAT rebuild, Vulkan)"
+} | tee "$LOG_ROOT/run-info.txt" >&2
+
+preflight
+
+for cell in $CELLS; do
+  out_of_time && { log "sweep budget exhausted before cell $cell — stopping with partial results"; break; }
+
+  spec=$(cell_spec "$cell") || fail "unknown cell '$cell' (expected A, B or C)"
+  IFS='|' read -r display endpoint served <<<"$spec"
+
+  log "===== cell $cell: $display (served as '$served' on $endpoint) ====="
+
+  if [ "$cell" = "A" ]; then
+    swap_unload || true
+    start_container
+  else
+    container_down
+  fi
+
+  warmup "$endpoint" "$served"
+
+  for seed in $SEEDS; do
+    out_of_time && { log "budget exhausted mid-cell $cell"; break; }
+    run_attempt "$cell" "$display" "$endpoint" "$served" "$seed" || true
+  done
+
+  if [ "$cell" = "A" ]; then
+    container_down
+    log "cell A: container down"
+    sleep 5
+  else
+    swap_unload || true
+    log "cell $cell: model unloaded"
+  fi
+done
+
+log "sweep finished; status: $STATUS_TSV"
+cut -f1-12 "$STATUS_TSV" | column -t -s$'\t' >&2
