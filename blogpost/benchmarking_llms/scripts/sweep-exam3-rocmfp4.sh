@@ -82,6 +82,9 @@ cell_spec() {
     A) echo "rocmfp4-moe-35b-a3b|$CONTAINER_ENDPOINT|$CONTAINER_ALIAS" ;;
     B) echo "qwen36-moe-unsloth|$SWAP_ENDPOINT|qwen36-moe" ;;
     C) echo "gemma4-26b-qat|$SWAP_ENDPOINT|gemma4-26b-qat-mtp" ;;
+    # Qwen3.5-122B-A10B UD-Q2_K_XL. Decodes at 6.2 t/s (vs 11-14 for A/B/C), so
+    # run it with ATTEMPT_TIMEOUT=60m; the 30m default truncates it.
+    D) echo "qwen35-122b|$SWAP_ENDPOINT|qwen35-122b" ;;
     *) return 1 ;;
   esac
 }
@@ -306,6 +309,7 @@ printf 'ts\tcell\tdisplay\tserved_model\tseed\tscore\tmax\ttokens\ttps\twall_s\t
   echo "cellA:       $MODEL_DIR/$MODEL_FILE ($IMAGE, HIP gfx1150)"
   echo "cellB:       llama-swap qwen36-moe (Unsloth UD-Q4_K_XL, Vulkan)"
   echo "cellC:       llama-swap gemma4-26b-qat-mtp (QAT rebuild, Vulkan)"
+  echo "cellD:       llama-swap qwen35-122b (UD-Q2_K_XL, mmap+ncmoe 20, 32k ctx)"
 } | tee "$LOG_ROOT/run-info.txt" >&2
 
 preflight
@@ -313,7 +317,7 @@ preflight
 for cell in $CELLS; do
   out_of_time && { log "sweep budget exhausted before cell $cell — stopping with partial results"; break; }
 
-  spec=$(cell_spec "$cell") || fail "unknown cell '$cell' (expected A, B or C)"
+  spec=$(cell_spec "$cell") || fail "unknown cell '$cell' (expected A, B, C or D)"
   IFS='|' read -r display endpoint served <<<"$spec"
 
   log "===== cell $cell: $display (served as '$served' on $endpoint) ====="

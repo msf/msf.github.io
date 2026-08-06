@@ -1,11 +1,17 @@
-# exam_v3 re-run: ROCmFP4 vs Unsloth vs Gemma, two temperatures, plus a hosted control
+# exam_v3 re-run: ROCmFP4 vs Unsloth vs Gemma vs a 122B, two temperatures, plus a hosted control
 
-_Date: 2026-08-06. Machine: Framework 13, Ryzen AI HX 370, Radeon 890M, 62 GiB._
-_Lab git sha at run time: `c76d2ca`. Exam, prompt, evaluator and driver unchanged from April._
+_Date: 2026-08-06/07. Machine: Framework 13, Ryzen AI HX 370, Radeon 890M, 62 GiB._
+_Lab git sha at run time: `c76d2ca` (cells A/B/C/H), `c5df59b` (cell D)._
+_Exam, prompt, evaluator and driver unchanged from April._
 
-16 attempts. Answers the question in `docs/plans/EXAM_V4_STAGED_AGENTIC.md` (ROCmFP4
-vs Unsloth), plus two things that question turned out to depend on: sampling
-temperature, and whether the exam's ceiling is really 13.
+18 attempts. Answers the question in `docs/plans/EXAM_V4_STAGED_AGENTIC.md` (ROCmFP4
+vs Unsloth), plus three things that question turned out to depend on: sampling
+temperature, whether the exam's ceiling is really 13, and whether a much larger
+model at a much lower bpw buys anything on this hardware.
+
+**Every number here was measured with `platform_profile: low-power` /
+`governor: powersave`.** Scores are unaffected; the `t/s` and `wall_s` columns are
+**not** comparable to anything measured under `performance`. See TODO item 3.
 
 ## Runs
 
@@ -15,6 +21,7 @@ temperature, and whether the exam's ceiling is really 13.
 | local A | `20260806-162444` | `artifacts/results/exam_v3/` | 1.0 |
 | local B | `20260806-183911-temp06` | `artifacts/results/exam_v3_temp06/` | 0.6 |
 | hosted | `20260806-203809-hosted` | `artifacts/results/exam_v3_hosted/` | 0.6 and 1.0 |
+| cell D | `20260807-001732-cellD` | `artifacts/results/exam_v3/qwen35-122b/` | 1.0 |
 
 Artifacts are gitignored, so the tables below are the record.
 
@@ -25,9 +32,11 @@ Artifacts are gitignored, so the tables below are the record.
 | A | `Qwen3.6-35B-A3B-NSC-ACE-SABER-MTP-F16-to-ROCmFP4-STRIX_LEAN.gguf` | container `:18080`, HIP gfx1150 | 19.05 GB |
 | B | `Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf` (Unsloth) | llama-swap `qwen36-moe`, Vulkan | 22.85 GB |
 | C | `gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf` + MTP drafter | llama-swap `gemma4-26b-qat-mtp`, Vulkan | 14.25 + 0.25 GB |
+| D | `Qwen3.5-122B-A10B-UD-Q2_K_XL.gguf` (Unsloth, MTP) | llama-swap `qwen35-122b`, Vulkan, `-ncmoe 20`, `-c 32768` | 42.85 GB |
 | H | `claude-haiku-4-5-20251001` | `https://api.anthropic.com`, OpenAI-compat | hosted |
 
 Reasoning ON for all local cells (April used `--reasoning off`). Seeds 42 and 123.
+Cell D ran temp 1.0 only — see finding 6 for why a 0.6 arm was not worth 30 min/attempt.
 
 ## Results
 
@@ -36,6 +45,7 @@ Reasoning ON for all local cells (April used `--reasoning off`). Seeds 42 and 12
 | A | ROCmFP4 ACE-SABER 35B-A3B | 7/13 | 0/13 | 6/13 | 0/13 |
 | B | Unsloth UD-Q4_K_XL 35B-A3B | 7/13 | 5/13 | 6/13 | 0/13 |
 | C | Gemma 4 26B-A4B QAT | 0/13 | 6/13 | **7/13** | **11/13** |
+| D | Qwen3.5-122B-A10B Q2_K_XL | 0/13 | 3/13 | not run | not run |
 | H | Haiku 4.5 | 11/13 | 11/13 | 10/13 | 11/13 |
 
 Throughput and wall time:
@@ -57,6 +67,8 @@ Throughput and wall time:
 | H | 0.6 | 42 | 3736 | n/a | 19.7 |
 | H | 0.6 | 123 | 3342 | n/a | 19.0 |
 | H | 1.0 | 42 | 3226 | n/a | 17.9 |
+| D | 1.0 | 42 | 3466 | 6.11 | 679.4 |
+| D | 1.0 | 123 | 4610 | 5.86 | 887.6 |
 | H | 1.0 | 123 | 3869 | n/a | 21.4 |
 
 Hosted `tps` is 0 because the Anthropic response has no llama.cpp `timings` block.

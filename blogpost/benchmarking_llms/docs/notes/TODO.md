@@ -2,6 +2,71 @@
 
 Active issues and deferred work. Update as things move.
 
+## Active — opened 2026-08-06
+
+Three items, in priority order. The first two are the split the user asked for;
+they are independent and must not be conflated in one sweep.
+
+### 1. exam_v3 datapoint for Qwen3.5-122B-A10B — DONE 2026-08-07
+
+Scored **0/13 (seed42) and 3/13 (seed123)** at temp 1.0, reasoning on. Worst
+local result in the table; 2× slower than everything else. Run
+`20260807-001732-cellD`, results in `artifacts/results/exam_v3/qwen35-122b/`,
+written up in `../reports/EXAM_V3_2026-08-06_TEMP_AND_HOSTED.md`.
+
+seed42's 0 was a genuine compile failure (three `context.WithTimeout` results
+declared and never used), not a harness artifact — response was complete and
+well-fenced.
+
+What it took to make the model load at all, all measured, all now encoded in
+`~/play/llama/config.yaml` as `qwen35-122b` / `qwen35-122b-nothink`:
+
+- **`--mmap` overrides the macro's `--no-mmap`** (last flag wins in llama.cpp,
+  verified with a tiny model via `/proc/pid/maps` + RSS). With `--no-mmap` the
+  model is *unloadable* on this UMA box: ~40 GiB host staging plus ~40 GiB GTT
+  out of 62 GiB total. Two attempts thrashed at 35–40 GiB GTT with `read_bytes`
+  flat at 76 GB (1.8× the file) and `stime` +100 s per 15 s wall; killed at
+  941 s. With mmap: loads in 45 s.
+- **`-ncmoe 20`** (MoE weights of first 20 of 48 layers on CPU). Swept:
+  24 → 3.10 t/s, **20 → 5.47 t/s**, 16 → 4.31 t/s, 12 and 8 fail to load.
+- **`-c 32768`**, and `healthCheckTimeout: 300 → 1200` globally (300 s killed
+  the first load mid-flight).
+- Measured on the real exam_v3 prompt: **2497 prompt tokens** (not the 10088 the
+  old plan quoted), prefill 22.9 t/s / 109 s, decode 6.2 t/s.
+- Cell D added to `scripts/sweep-exam3-rocmfp4.sh`; needs `ATTEMPT_TIMEOUT=60m`.
+
+Conclusion: **do not spend more time on 2-bit quants of this model.** If the
+122B is worth revisiting, it needs ≥3-bit, which needs a box with more memory.
+
+### 2. exam_v4 = a runnable subset of terminal-bench
+
+Plan: `../plans/EXAM_V4_TERMINAL_BENCH.md`. Harness installed (`tb` 0.2.18 via
+`uv tool`, on PATH at `~/.local/bin/tb`). Nothing run yet.
+
+Blocking findings already recorded in the plan:
+- reasoning-on is physically impossible here — 8192 thinking tokens at 14 t/s
+  is ~585 s/turn against a 900 s default task timeout. Use `-nothink` aliases
+  and raise `--global-agent-timeout-sec`.
+- `terminus-2` gets its context limit from `litellm.get_max_tokens()`, which
+  raises for `openai/<local-name>` and falls back to 1 000 000, so it never
+  self-summarises. Serve locals at their configured 131072.
+- oracle-agent preflight is the equivalent of exam_v3's 13/13 reference gate.
+  No model number counts until the oracle passes the subset.
+
+### 3. Re-run exam_v3 on the top-3 for clean timing
+
+Every number in `../reports/EXAM_V3_2026-08-06_TEMP_AND_HOSTED.md` was measured
+with `platform_profile: low-power` / `governor: powersave`. Scores are fine;
+**the t/s and wall_s columns are not comparable to anything measured later.**
+
+- set `performance` first (needs sudo, not settable from the agent):
+  `echo performance | sudo tee /sys/firmware/acpi/platform_profile`
+- re-run the top-3 scorers only, **one temperature**. Two temps cost 2× the
+  wall time and the 2026-08-06 arms showed temp is not the discriminator
+  (Gemma moved a lot, both Qwen cells moved the wrong way, Haiku not at all).
+  Pick 1.0 for continuity with April, or 0.6 for Gemma's best — decide once.
+- seeds stay at 42/123. Do not add seeds; scores are near-binary.
+
 ## Blocker — exam_v2 harness architecture
 
 Current harness is slow, flaky, and timing-sensitive. See ../plans/SUBAGENT_EVAL_REVIEW_BRIEF.md
