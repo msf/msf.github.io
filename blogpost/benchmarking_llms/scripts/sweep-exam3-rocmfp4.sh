@@ -115,35 +115,10 @@ trap cleanup EXIT INT TERM
 preflight_grader() {
   local probe response
   probe=$(mktemp -d)
-  python3 - "$BENCH_DIR" "$probe" <<'PY'
-import os, re, sys
-bench, probe = sys.argv[1:3]
-sol = open(os.path.join(bench, "scraper_solution.go")).read()
-skel = open(os.path.join(bench, "scraper.go")).read()
-
-# The response the driver would have received: solution's NewScraper +
-# implementation, plus the skeleton's types/interfaces/main, as one file.
-start = skel.index("// --- HTTP implementations ---")
-merged = sol.rstrip() + "\n\n" + skel[start:]
-
-# Union of both import blocks, minus what the merged body no longer uses.
-imports = set()
-for src in (sol, skel):
-    m = re.search(r"import \(\n(.*?)\n\)", src, re.S)
-    if m:
-        imports.update(l.strip().strip('"') for l in m.group(1).splitlines() if l.strip())
-body = merged.split(")", 1)[1] if merged.startswith("import") else merged
-keep = sorted(i for i in imports
-              if re.search(r"\b%s\." % re.escape(i.split("/")[-1].replace("/v2", "")), merged))
-merged = re.sub(r"import \(\n.*?\n\)",
-                "import (\n" + "\n".join('\t"%s"' % i for i in keep) + "\n)",
-                merged, count=1, flags=re.S)
-
-with open(os.path.join(probe, "response.txt"), "w") as f:
-    f.write("```go\n" + merged + "\n```\n")
-PY
   response="$probe/response.txt"
-  [ -s "$response" ] || { rm -rf "$probe"; fail "preflight: could not build reference response"; }
+  python3 "$BENCH_DIR/make-reference-response.py" "$BENCH_DIR" "$response" \
+    2>"$LOG_ROOT/preflight-reference.log"
+  [ -s "$response" ] || { rm -rf "$probe"; fail "preflight: could not build reference response (see $LOG_ROOT/preflight-reference.log)"; }
 
   local out score
   out=$(bash "$BENCH_DIR/eval.sh" "$response" "$probe" 2>"$LOG_ROOT/preflight-grader.log")
