@@ -1,127 +1,124 @@
-# exam_v4 — staged agentic delivery (design, for a fresh session)
+# Re-run exam_v3 on the ROCmFP4 MoE — task for a fresh session
 
-_Written 2026-08-06. Status: **design only, nothing built.** Deliberately deferred —
-see "Why this was not the next thing" at the bottom._
+_Written 2026-08-06. Status: not run. **Nothing new to build.**_
 
-## The idea
+> Filename is stale. This file used to hold a staged-agentic "exam_v4" design.
+> That was dropped as over-engineering; the plan below replaced it. The old
+> design is in git at commit `10f6678` if it is ever wanted again.
 
-`exam_v3` hands a model the whole resilience task in one prompt and scores the
-single artifact. `exam_v4` keeps the identical repo, identical grader, and
-identical 13-point scale, but delivers the work as **four scoped requests in one
-conversation against one sandbox** — the way a person actually uses an agent.
+## The question
 
-Framing given to the model on request 1 (user's words, lightly tightened):
+Is `jcbtc`'s ROCmFP4 quant of Qwen3.6-35B-A3B better or worse than the Unsloth
+quant of the same model, for Go coding on this laptop?
 
-> You are being asked to fix and extend this code across several requests.
-> Certain interfaces must not change, because an evaluation test suite runs
-> against your changes. This is request 1 of 4. `scraper.go` contains a metric
-> scraper; identify and fix the bugs in `Run()`.
+Nothing else. Not agentic ability, not a new harness. **Use `exam_v3` exactly as
+committed** — same `prompt.txt`, same `eval.sh`, same `exam-driver.go`, /13.
 
-Then request 2 arrives in the same conversation: "First task complete. Second
-task: …". And so on.
+## Cells
 
-What this measures that neither existing exam can:
+| cell | display | serving | model | size |
+|---|---|---|---|---|
+| A | `rocmfp4-moe-35b-a3b` | container on `:18080` | `Qwen3.6-35B-A3B-NSC-ACE-SABER-MTP-F16-to-ROCmFP4-STRIX_LEAN.gguf` | 19.047 GB, ~4.29 bpw |
+| B | `qwen36-moe-unsloth` | llama-swap `:8090`, model `qwen36-moe` | `Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf` | 22.854 GB, ~5.15 bpw |
+| C | `gemma4-26b-qat` | llama-swap `:8090`, model `gemma4-26b-qat-mtp` | `gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf` + MTP drafter | 14.25 + 0.25 GB |
 
-1. **Incremental construction** — can it build on its own prior work.
-2. **Regression** — does request 4 break what request 2 achieved. This is the
-   most realistic agentic failure mode and we currently have zero visibility
-   into it.
-3. **Scoping discipline** — does it stay inside the current ask or run ahead.
+A vs B is the question — same base model, same MTP head, different quant and
+tune. C is the control: Gemma topped the April exam_v3 table at 11/13, but this
+is the QAT rebuild, not April's MXFP4 build, so it must be re-measured rather
+than quoted.
 
-## Stages and their gates
+Seeds `42 123`. A and B cannot be resident at once (17.7 + 21.3 GiB on a 62 GiB
+box) — run cells sequentially, tearing down between them.
 
-Base fixture: `bench/exam_v3/scraper.go` as-is — the buggy `defaultScraper`
-(busy-loop on `time.Sleep`, ignores `ctx`, crashes on nil `data` when the source
-errors, drops metrics on write failure). No `resilient.go`; the model creates it
-or edits in place.
+## How to run it
 
-| stage | ask | gate tests | pts |
-|---|---|---|---:|
-| 1 | Fix the bugs in `Run()`: honour context cancellation, don't crash when the source fails. | `TestNewScraperValidation`, `TestGracefulCancel` | 2 |
-| 2 | Buffer during sink outages — nothing lost across short outages. | `TestReadsDuringOutage`, `TestNoLossAcrossTransitions`, `TestShortOutageNoLoss`, `TestMultipleShortOutagesNoLoss` | 4 |
-| 3 | Bound the buffer at `maxBufSize`; choose an eviction policy for multi-hour outages. | `TestLongOutage/{BoundedBuffer,FullBufferFlushed,EvictionNotContiguous}` | 3 |
-| 4 | Source and sink can *hang*, not just fail. Survive it under load. | `TestSurvivesUnderLoad`, `TestHangBehavior/{CancelDuringHungRead,CancelDuringHungWrite,ReadsProgressDespiteHungWrite}` | 4 |
+A runner already exists: `scripts/sweep-exam3-rocmfp4.sh` (committed, `1dbc5d7`
++ `596132e`). It does preflight, warm-up, sequential cells, teardown, and
+resumes on re-invocation.
 
-2 + 4 + 3 + 4 = 13. Same `bench/exam_v3/grader_test.go`, unchanged, so exam_v4
-scores are directly comparable to the exam_v3 one-shot table.
+```bash
+cd ~/play/msf.github.io/blogpost/benchmarking_llms
+SEEDS="42 123" CELLS="A B C" ./scripts/sweep-exam3-rocmfp4.sh
+```
 
-**Advance unconditionally.** Do not gate stage N+1 on stage N passing — a model
-that flunks stage 2 would otherwise produce no data at all. Record whether each
-stage's own gate passed at the transition, and move on.
+If you'd rather not trust that script, the manual equivalent per cell is:
 
-## Scoring
+```bash
+go run ./exam-driver.go \
+  -endpoint <http://127.0.0.1:8090 | http://127.0.0.1:18080> \
+  -prompt bench/exam_v3/prompt.txt \
+  -eval bench/exam_v3/eval.sh \
+  -out artifacts/results/exam_v3 \
+  -seed 42 -temp 1.0 -max-tokens 8192 -timeout 15m \
+  <served-model-name>
+```
 
-Run the **full 13-test grader after every stage**, not just at the end. That
-yields three numbers per attempt:
+Cell A's container command is in `docs/notes/ROCMFPX_QWOPUS_SETUP.md` §6, with
+the flags matched to llama-swap's `qwen36-moe` entry.
 
-- **final score /13** — quality, quantitative, same scale as exam_v3.
-- **total wall seconds for all four stages** — the time metric. Total time to
-  solve the problem is what counts; do not report tok/s or pp-vs-tg here.
-- **regressions** — count of stages where the score *dropped* vs the previous
-  stage. A model that reaches 9/13 at stage 3 and falls to 6/13 at stage 4 broke
-  its own earlier work. Neither existing exam can see this.
+## Non-negotiables
 
-Keep per-stage wall seconds and turns too — "which stage did it fall apart on"
-is the narrative the blog post needs.
+1. **Preflight the grader.** `bench/exam_v3/make-reference-response.py` builds
+   the response a perfect model would emit; `eval.sh` must score it **13/13**.
+   If it doesn't, no model score from that run means anything. The runner does
+   this and aborts on failure.
+2. **Warm up and discard.** Cold prefill measured 1.07 t/s vs 13.10 warm — a 12x
+   artifact on `wall_s`.
+3. **Stop `llama-fim.service`** for the duration; restore it after.
+4. **Match server config across cells.** Parity was proven by identical prompt
+   tokenization (10088 both sides). Container flags must mirror llama-swap's
+   `qwen36-moe`: `--flash-attn on --cache-type-k/v q8_0 -ngl 99 --no-mmap
+   --ctx-checkpoints 0 --jinja --parallel 1 -c 131072 --reasoning on
+   --reasoning-budget 8192 --spec-type draft-mtp --spec-draft-n-max 3
+   --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.0`.
 
-## What to build
+## Deviations from the April 2026 clean rerun — state these in any writeup
 
-Reuse `agentic/agent-driver.go` wholesale — the tool loop, sandbox, caps, and
-`harness_config` recording are already correct and parity-proven. Additions:
+The April numbers in `bench/exam_v3/REPORT.md` are historical context, **not a
+control**:
 
-- `agentic/tasks/exam_v4/repo/` — pristine `bench/exam_v3/scraper.go` +
-  `grader_test.go` + `go.mod`.
-- `agentic/tasks/exam_v4/stages/{01,02,03,04}.md` — the four request texts.
-- `agentic/tasks/exam_v4/grade.sh` — returns `{"score":N,"max":13,"per_test":{…}}`
-  instead of an exit code. Must restore pristine `grader_test.go` + `go.mod`
-  first and reject added `*_test.go`, exactly as `bug-hunt-01/verify.sh` does.
-- driver: stage loop, per-stage grade + timing, regression detection, and a
-  per-stage turn cap (suggest 8 turns / 15 min, 60 min per attempt).
+- April used `--reasoning off`. This run uses reasoning **on**, because that's
+  how the box actually serves now.
+- Gemma is the QAT rebuild, not April's MXFP4 build. Different weights.
+- llama.cpp release, llama-swap version, and MTP drafters all moved since April.
 
-Suggested cells: 3 models × 2 seeds. Models as in the exam_v3 comparison —
-`rocmfp4-moe`, `qwen36-moe`, `gemma4-26b-qat-mtp`.
+That is exactly why cell C exists: it is the control *for this run*.
 
-## Relationship to bug-hunt-01
+## What "done" looks like
 
-Stage 1 *is* a bug hunt on the same repo, so `agentic/tasks/bug-hunt-01` becomes
-redundant as a model-comparison cell. Keep it: it is the fixture that proves the
-harness discriminates (broken → FAIL, reference → PASS, two cheat paths → FAIL),
-and `scripts/sweep-agentic.sh` uses exactly that as its blocking preflight.
+A table of score /13 per cell per seed, plus wall seconds and tok/s, written to
+`artifacts/results/exam_v3/<display>/seed<N>/result.json` and summarised in a
+`status.tsv`. Two seeds means best/worst, not a mean worth defending.
 
-## Why this was not the next thing
+Expected cost: 6 attempts, ~1–2 h wall.
 
-Recorded so a fresh session does not relitigate it.
+## Known-good speed numbers already measured (no need to redo)
 
-- Two agentic runs in one session were invalidated by harness bugs (a 4096
-  per-call token cap; `reasoning_content` dropped). exam_v2 → v3 was rebuilt for
-  the same class of reason. exam_v4 would be the third bespoke instrument in a
-  year.
-- The question that actually prompted all of this — *is the ROCmFP4 MoE worth
-  running on this laptop* — is answerable **today** by `exam_v3` one-shot with
-  zero new code, and is directly comparable to the already-published table.
-- A home-grown, n=1-task, 2-seed score has no external calibration. Before
-  investing further in bespoke harnesses, consider running an off-the-shelf
-  benchmark with a public leaderboard against the same llama-swap endpoint for
-  one externally-comparable datapoint. Aider's polyglot benchmark is the
-  candidate (~225 Exercism tasks, 2 attempts with test feedback, OpenAI-compatible
-  endpoint). **Unverified from memory — check its current shape before relying
-  on it.**
+From `docs/notes/ROCMFPX_QWOPUS_SETUP.md` §7b, on this laptop:
 
-So the ordering agreed with the user:
+| model | backend | decode t/s |
+|---|---|---|
+| ACE-SABER 35B-A3B MoE ROCmFP4, no MTP | HIP | 9.78 |
+| ACE-SABER 35B-A3B MoE ROCmFP4, MTP | HIP | 14.6 |
+| Qwen3.6-35B-A3B UD-Q4_K_XL (Unsloth) | Vulkan | ~22 |
+| Gemma 4 26B-A4B MXFP4 (April build) | Vulkan | 18.6 |
 
-1. exam_v3 one-shot on the three models. ← done first, see
-   `scripts/sweep-exam3-rocmfp4.sh`
-2. Optionally an externally-calibrated benchmark on the winner.
-3. exam_v4, as its own project, framed around the question worth answering:
-   **does a tool loop beat one-shot on an identical grader?**
+So ROCmFP4 is already known to be **slower**. The only open question is whether
+it is *better*, at 3.8 GB less on disk. If it scores worse and runs slower,
+that's the end of the line for this quant on this box.
 
-## Prior art in this repo, read before building
+## Caveat that bounds the conclusion
 
-- `agentic/README.md` — tool surface, caps, the four-way verifier validation.
-- `agentic/agent-driver.go` — the loop to extend.
-- `docs/notes/PHASE2_AGENTIC_HARNESS_DESIGN.md` — the April design that started
-  this, including task categories that were considered and dismissed
-  (log-investigation: weak signal; refactor: subjective).
-- `docs/plans/ROCMFPX_TEST_RUNBOOK.md` §Tier 3 — the tiering this slots into,
-  including the never-built 3.0 tool-adherence gate.
-- `bench/exam_v3/REPORT.md` — the one-shot numbers exam_v4 must be compared to.
+ACE-SABER is a chadrock **re-tune**, not a requant of Unsloth's weights. Quant
+and tune both vary, so an A-vs-B gap cannot be attributed to ROCmFP4 alone. The
+clean control would be a third cell with
+`CHADROCK3.6-35B-UNCENSORED-MTP-STRIX-LEAN` (19.047 GB, byte-identical size,
+different tune) — see `docs/notes/JCBTC_MOE_CANDIDATES.md`. Not downloaded.
+
+## Prior art to read first
+
+- `docs/notes/ROCMFPX_QWOPUS_SETUP.md` — build, run, and the measured speeds.
+- `docs/notes/JCBTC_MOE_CANDIDATES.md` — the model catalogue and why ACE-SABER.
+- `bench/exam_v3/REPORT.md` — the April table this is compared against.
+- `machines/framework13.md` — box conventions, and the caveat that exam_v3 on
+  this machine punishes Qwen-family locals for reasons still unresolved.
