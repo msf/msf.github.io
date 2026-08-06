@@ -46,13 +46,19 @@ STATUS_TSV="$LOG_ROOT/status.tsv"
 SEEDS="${SEEDS:-42 123}"
 CELLS="${CELLS:-A B C}"
 
-# Matches the April clean rerun so the numbers stay on the same scale.
-MAX_TOKENS="${MAX_TOKENS:-8192}"
+# max_tokens MUST exceed --reasoning-budget (8192). The April rerun used 8192
+# with `--reasoning off`; with reasoning ON, 8192 lets thinking consume the
+# entire allowance and `content` comes back empty -> a structural 0/13. Measured
+# 2026-08-06: at 8192 the ROCmFP4 cell returned 8192 tokens, all of them
+# reasoning_content, empty content. At 16384 the same server returns
+# finish=stop with both reasoning and content.
+MAX_TOKENS="${MAX_TOKENS:-16384}"
 TEMP="${TEMP:-1.0}"
-ATTEMPT_TIMEOUT="${ATTEMPT_TIMEOUT:-15m}"
+# 16384 tok at the ROCmFP4 cell's ~13 t/s is ~21 min, so 15m would truncate.
+ATTEMPT_TIMEOUT="${ATTEMPT_TIMEOUT:-30m}"
 
 # Hard stop for the whole sweep. Partial results are kept.
-SWEEP_BUDGET_S="${SWEEP_BUDGET_S:-14400}"   # 4h
+SWEEP_BUDGET_S="${SWEEP_BUDGET_S:-21600}"   # 6h: 6 attempts x up to 30m + loads
 SWEEP_DEADLINE=$(( $(date +%s) + SWEEP_BUDGET_S ))
 
 SWAP_ENDPOINT="${SWAP_ENDPOINT:-http://127.0.0.1:8090}"
@@ -61,6 +67,11 @@ CONTAINER_NAME="${CONTAINER_NAME:-exam3-rocmfp4}"
 CONTAINER_PORT="${CONTAINER_PORT:-18080}"
 CONTAINER_ENDPOINT="http://127.0.0.1:$CONTAINER_PORT"
 CONTAINER_ALIAS="rocmfp4-moe"
+# Sampler parity with llama-swap's qwen36-moe entry (config.yaml). Without these
+# the container ran llama.cpp defaults (top_k 40, min_p 0.05) while cell B ran
+# top_k 20 / min_p 0.0, so the 2026-08-06 A-vs-B gap was partly a sampler gap.
+# --temp here is a fallback only: the driver always sends `temperature`, which
+# overrides it. top_p/top_k/min_p are never sent, so they must be set here.
 IMAGE="${IMAGE:-local/rocmfpx-qwopus:gfx1150}"
 MODEL_DIR="${MODEL_DIR:-/mnt/ai-models/llama/models/Qwen3.6-35B-A3B-ACE-SABER-ROCmFP4}"
 MODEL_FILE="${MODEL_FILE:-Qwen3.6-35B-A3B-NSC-ACE-SABER-MTP-F16-to-ROCmFP4-STRIX_LEAN.gguf}"
@@ -178,6 +189,7 @@ start_container() {
     --gpu-layers 99 --no-mmap --ctx-checkpoints 0 --jinja --parallel 1 \
     --ctx-size 131072 --reasoning on --reasoning-budget 8192 \
     --predict 32768 --metrics --device ROCm0 \
+    --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 \
     --spec-type draft-mtp --spec-draft-ngl all \
     --spec-draft-type-k q8_0 --spec-draft-type-v q8_0 --spec-draft-n-max 3 \
     >"$LOG_ROOT/container-id" 2>"$LOG_ROOT/container-start.err" \
@@ -290,6 +302,7 @@ printf 'ts\tcell\tdisplay\tserved_model\tseed\tscore\tmax\ttokens\ttps\twall_s\t
   echo "attempt_to:  $ATTEMPT_TIMEOUT"
   echo "budget_s:    $SWEEP_BUDGET_S"
   echo "reasoning:   ON for all cells (April rerun used --reasoning off)"
+  echo "note:        max_tokens > reasoning-budget 8192, else content is empty"
   echo "cellA:       $MODEL_DIR/$MODEL_FILE ($IMAGE, HIP gfx1150)"
   echo "cellB:       llama-swap qwen36-moe (Unsloth UD-Q4_K_XL, Vulkan)"
   echo "cellC:       llama-swap gemma4-26b-qat-mtp (QAT rebuild, Vulkan)"

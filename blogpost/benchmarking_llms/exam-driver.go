@@ -35,6 +35,9 @@ var (
 	fTemp      = flag.Float64("temp", 1.0, "temperature")
 	fSeed      = flag.Int("seed", 42, "seed (-1 for nondeterministic)")
 	fTimeout   = flag.Duration("timeout", 10*time.Minute, "generation timeout")
+	// Hosted OpenAI-compatible endpoints (api.anthropic.com, api.openai.com)
+	// need a bearer token; llama-swap does not. Empty = no auth header.
+	fAPIKey = flag.String("api-key", os.Getenv("EXAM_API_KEY"), "bearer token (default $EXAM_API_KEY)")
 )
 
 // API types — minimal, only what we need.
@@ -174,6 +177,9 @@ func generate(model, prompt string) (*apiResp, error) {
 	httpReq, _ := http.NewRequestWithContext(ctx, "POST",
 		*fEndpoint+"/v1/chat/completions", bytes.NewReader(body))
 	httpReq.Header.Set("Content-Type", "application/json")
+	if *fAPIKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+*fAPIKey)
+	}
 	resp, err := http.DefaultClient.Do(httpReq)
 	if err != nil {
 		return nil, err
