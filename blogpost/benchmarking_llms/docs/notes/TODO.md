@@ -18,8 +18,10 @@ seed42's 0 was a genuine compile failure (three `context.WithTimeout` results
 declared and never used), not a harness artifact — response was complete and
 well-fenced.
 
-What it took to make the model load at all, all measured, all now encoded in
-`~/play/llama/config.yaml` as `qwen35-122b` / `qwen35-122b-nothink`:
+**Weights deleted 2026-08-07** (42.8 GB reclaimed from `/home`), and the
+`qwen35-122b` / `qwen35-122b-nothink` llama-swap entries and sweep cell D were
+removed with them. The measurements below are kept as the evidence for not
+retrying, not as a recipe to re-serve it:
 
 - **`--mmap` overrides the macro's `--no-mmap`** (last flag wins in llama.cpp,
   verified with a tiny model via `/proc/pid/maps` + RSS). With `--no-mmap` the
@@ -29,11 +31,15 @@ What it took to make the model load at all, all measured, all now encoded in
   941 s. With mmap: loads in 45 s.
 - **`-ncmoe 20`** (MoE weights of first 20 of 48 layers on CPU). Swept:
   24 → 3.10 t/s, **20 → 5.47 t/s**, 16 → 4.31 t/s, 12 and 8 fail to load.
-- **`-c 32768`**, and `healthCheckTimeout: 300 → 1200` globally (300 s killed
-  the first load mid-flight).
+- **`-c 32768`**, and `healthCheckTimeout` had to go 300 → 1200 globally (300 s
+  killed the first load mid-flight). Reverted to 300 with the entries.
 - Measured on the real exam_v3 prompt: **2497 prompt tokens** (not the 10088 the
   old plan quoted), prefill 22.9 t/s / 109 s, decode 6.2 t/s.
-- Cell D added to `scripts/sweep-exam3-rocmfp4.sh`; needs `ATTEMPT_TIMEOUT=60m`.
+
+Generally useful, independent of this model: **the last occurrence of a
+llama.cpp flag wins**, so a model entry can override the `llama-server` macro
+(`--mmap` beats an earlier `--no-mmap`, a later `--ctx-size` beats an earlier
+one). Both verified empirically.
 
 Conclusion: **do not spend more time on 2-bit quants of this model.** If the
 122B is worth revisiting, it needs ≥3-bit, which needs a box with more memory.

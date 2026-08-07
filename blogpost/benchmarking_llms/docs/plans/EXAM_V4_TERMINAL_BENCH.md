@@ -61,8 +61,7 @@ Each terminal observation is capped at 10 000 bytes ≈ 2.5k tokens
 (`_limit_output_length`, default `max_bytes=10000`), so a 16k context dies
 around turn 4.
 
-→ Serve locals at their configured `-c 131072`. For the 122B, `-c 65536`
-(KV q8_0 ≈ 3.2 GiB; weights 39.9 GiB + KV 43.1 GiB against a 57 GiB GTT).
+→ Serve locals at their configured `-c 131072`.
 
 Related, smaller: `lite_llm.py` never passes `max_tokens` to
 `litellm.completion`, and raises `OutputLengthExceededError` on
@@ -127,7 +126,7 @@ which each failure happened (timeout vs. wrong answer vs. context blowup —
 these are different findings and the run logs distinguish them).
 
 Cells: `gemma4-26b-qat-mtp-nothink` (current best local), `qwen36-moe-nothink`,
-Haiku 4.5 as the ceiling reference, and the 122B once exam_v3 has scored it.
+and Haiku 4.5 as the ceiling reference.
 
 ## Open, unmeasured
 
