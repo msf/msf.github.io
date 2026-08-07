@@ -82,9 +82,41 @@ cell_spec() {
     A) echo "rocmfp4-moe-35b-a3b|$CONTAINER_ENDPOINT|$CONTAINER_ALIAS" ;;
     B) echo "qwen36-moe-unsloth|$SWAP_ENDPOINT|qwen36-moe" ;;
     C) echo "gemma4-26b-qat|$SWAP_ENDPOINT|gemma4-26b-qat-mtp" ;;
+    # --- hopper cells (R9700, 32 GiB dedicated VRAM, Vulkan) -----------------
+    # Cells A-D above ran on the Framework 13 (62 GiB UMA). E-J are the same
+    # exam on the R9700 box, same max_tokens/temp/seeds, reasoning ON.
+    #
+    # E is the continuity anchor and must run first: hopper's qwen-35b-moe-mtp
+    # is the same build as cell B (Qwen3.6-35B-A3B UD-Q4_K_XL + MTP, 22.85 GB),
+    # so it is the only cell whose score is directly comparable across machines.
+    # Cell B scored 7/13 (seed42) and 5/13 (seed123). If E does not land near
+    # that, the machines are not comparable and the rest of the table is not
+    # worth running — stop and investigate rather than collecting numbers.
+    E) echo "qwen36-moe-mtp-r9700|$SWAP_ENDPOINT|qwen-35b-moe-mtp" ;;
+    F) echo "gemma4-31b-qat-r9700|$SWAP_ENDPOINT|gemma-31b-qat" ;;
+    G) echo "gemma4-31b-ptq-r9700|$SWAP_ENDPOINT|gemma-31b" ;;
+    H) echo "qwen36-27b-mtp-r9700|$SWAP_ENDPOINT|qwen-27b-mtp" ;;
+    # Gemma 4 26B-A4B UD-Q5_K_XL, no MTP: hopper has no Gemma MTP/assistant
+    # GGUF on disk and no QAT 26B build, so this is not the same weights as
+    # cell C (QAT UD-Q4_K_XL + MTP). MTP is lossless for scoring — it moves
+    # t/s and wall_s, not /13 — so the score is comparable to C, the timing
+    # is not.
+    I) echo "gemma4-26b-moe-r9700|$SWAP_ENDPOINT|gemma-26b-moe" ;;
+    J) echo "gemma4-e4b-r9700|$SWAP_ENDPOINT|gemma-e4b" ;;
     *) return 1 ;;
   esac
 }
+
+# Samplers sent explicitly by the driver on every cell (see exam-driver.go).
+# Values match what cells A-C ran on the Framework 13, so cell E stays a valid
+# continuity anchor. Note this overrides the *server* defaults for hopper's
+# Gemma entries, which set no sampler flags and would otherwise run llama.cpp
+# defaults (top_k 40, min_p 0.05) while the Qwen MTP entries run 20 / 0.0.
+# Internal parity across the table is worth more than matching each model's
+# own launch flags; the values land in result.json under `sampler` either way.
+TOP_P="${TOP_P:-0.95}"
+TOP_K="${TOP_K:-20}"
+MIN_P="${MIN_P:-0.0}"
 
 FIM_WAS_ACTIVE=0
 mkdir -p "$LOG_ROOT" "$RESULTS_DIR"
@@ -96,7 +128,10 @@ out_of_time() { [ "$(date +%s)" -ge "$SWEEP_DEADLINE" ]; }
 
 # --- environment control -----------------------------------------------------
 
+# llama-swap's admin route differs by version: v211 (hopper) serves GET /unload
+# and 404s the POST path; v241 (Framework 13) takes the POST. Try both.
 swap_unload() {
+  curl -fsS -m 30 "$SWAP_ENDPOINT/unload" >/dev/null 2>&1 && return 0
   curl -fsS -m 30 -X POST "$SWAP_ENDPOINT/api/models/unload" >/dev/null 2>&1
 }
 
@@ -140,12 +175,23 @@ preflight_grader() {
 }
 
 preflight() {
-  command -v docker >/dev/null || fail "docker missing"
+  # docker is only needed for cell A (the ROCmFP4 container). The hopper cells
+  # are all llama-swap, so don't gate them on a docker install.
+  case " $CELLS " in
+    *" A "*) command -v docker >/dev/null || fail "docker missing (needed for cell A)" ;;
+  esac
   command -v go >/dev/null     || fail "go missing"
   command -v jq >/dev/null     || fail "jq missing (eval.sh needs it)"
   [ -f "$BENCH_DIR/prompt.txt" ] || fail "missing $BENCH_DIR/prompt.txt"
   [ -f "$BENCH_DIR/eval.sh" ]    || fail "missing $BENCH_DIR/eval.sh"
   [ -f "$DRIVER" ]               || fail "missing $DRIVER"
+
+  # Every cell except A is served by llama-swap. Fail now rather than after the
+  # ~10s grader preflight and a model load.
+  if [ -n "$(printf '%s' "$CELLS" | tr -d ' A')" ]; then
+    curl -fsS -m 10 "$SWAP_ENDPOINT/health" >/dev/null 2>&1 \
+      || fail "llama-swap not responding at $SWAP_ENDPOINT"
+  fi
 
   case " $CELLS " in
     *" A "*)
@@ -268,6 +314,9 @@ run_attempt() {
     -out "$tmpout" \
     -seed "$seed" \
     -temp "$TEMP" \
+    -top-p "$TOP_P" \
+    -top-k "$TOP_K" \
+    -min-p "$MIN_P" \
     -max-tokens "$MAX_TOKENS" \
     -timeout "$ATTEMPT_TIMEOUT" \
     "$served" >"$celllog" 2>&1
@@ -303,6 +352,8 @@ printf 'ts\tcell\tdisplay\tserved_model\tseed\tscore\tmax\ttokens\ttps\twall_s\t
   echo "budget_s:    $SWEEP_BUDGET_S"
   echo "reasoning:   ON for all cells (April rerun used --reasoning off)"
   echo "note:        max_tokens > reasoning-budget 8192, else content is empty"
+  echo "sampler:     top_p=$TOP_P top_k=$TOP_K min_p=$MIN_P (sent by driver on every cell)"
+  echo "host:        $(hostname)"
   echo "cellA:       $MODEL_DIR/$MODEL_FILE ($IMAGE, HIP gfx1150)"
   echo "cellB:       llama-swap qwen36-moe (Unsloth UD-Q4_K_XL, Vulkan)"
   echo "cellC:       llama-swap gemma4-26b-qat-mtp (QAT rebuild, Vulkan)"
