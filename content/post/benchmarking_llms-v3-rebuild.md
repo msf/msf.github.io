@@ -3,7 +3,7 @@ title: "Testing LLMs is hard, doubly hard when the testplan and code are vibecod
 date: 2026-05-07T22:59:29+01:00
 ---
 
-*Part 4/4 — **Part 4** ← [Part 3](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/) ← [Part 2](https://blog.mfilipe.eu/post/local-llm-performance-framework13/) ← [Part 1](https://blog.mfilipe.eu/post/benchmarking-local-llms-go-coding/)*
+*Part 4/5 — [Part 5](https://blog.mfilipe.eu/post/local-llm-terminal-bench/) ← **Part 4** ← [Part 3](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/) ← [Part 2](https://blog.mfilipe.eu/post/local-llm-performance-framework13/) ← [Part 1](https://blog.mfilipe.eu/post/benchmarking-local-llms-go-coding/)*
 
 *May 2026 — co-authored with Gemma 4*
 
