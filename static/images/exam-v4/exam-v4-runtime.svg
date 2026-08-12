@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 348" width="100%" style="max-width:760px;height:auto" role="img" aria-label="Wall-clock runtime per model on the 20-task subset" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+<title>Wall-clock runtime per model on the 20-task subset</title>
+<text x="4.0" y="16.0" font-size="15" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">What 20 tasks cost in wall-clock time</text>
+<text x="4.0" y="34.0" font-size="12" fill="#a8a8a8" text-anchor="start" font-weight="400" opacity="1.0">one attempt per task, one trial at a time · 43h06m total</text>
+<text x="4.0" y="55.0" font-size="12" fill="#a8a8a8" text-anchor="start" font-weight="400" opacity="1.0">more failures → more time: a failed task burns its whole agent timeout</text>
+<text x="194.0" y="91.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">qwen-35b-moe-mtp</text>
+<path d="M208.0,76 H487.3 a4,4 0 0 1 4,4 V92.0 a4,4 0 0 1 -4,4 H208.0 V76.0 Z" fill="#3d8fc8"/>
+<text x="501.3" y="91.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="400" opacity="1.0">6h08m  ·  8/20 solved</text>
+<text x="194.0" y="131.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">qwen-27b-mtp</text>
+<path d="M208.0,116 H539.1 a4,4 0 0 1 4,4 V132.0 a4,4 0 0 1 -4,4 H208.0 V116.0 Z" fill="#3d8fc8"/>
+<text x="553.1" y="131.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="400" opacity="1.0">7h15m  ·  7/20 solved</text>
+<text x="194.0" y="171.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">gemma-31b-qat</text>
+<path d="M208.0,156 H555.3 a4,4 0 0 1 4,4 V172.0 a4,4 0 0 1 -4,4 H208.0 V156.0 Z" fill="#3d8fc8"/>
+<text x="569.3" y="171.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="400" opacity="1.0">7h36m  ·  6/20 solved</text>
+<text x="194.0" y="211.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">muse-glimmer-30b</text>
+<path d="M208.0,196 H513.7 a4,4 0 0 1 4,4 V212.0 a4,4 0 0 1 -4,4 H208.0 V196.0 Z" fill="#3d8fc8"/>
+<text x="527.7" y="211.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="400" opacity="1.0">6h42m  ·  5/20 solved</text>
+<text x="194.0" y="251.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">qwen-27b-mtp-q6</text>
+<path d="M208.0,236 H537.7 a4,4 0 0 1 4,4 V252.0 a4,4 0 0 1 -4,4 H208.0 V236.0 Z" fill="#3d8fc8"/>
+<text x="551.7" y="251.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="400" opacity="1.0">7h13m  ·  5/20 solved</text>
+<text x="194.0" y="291.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">gemma-26b-moe</text>
+<path d="M208.0,276 H581.6 a4,4 0 0 1 4,4 V292.0 a4,4 0 0 1 -4,4 H208.0 V276.0 Z" fill="#3d8fc8"/>
+<text x="595.6" y="291.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="400" opacity="1.0">8h10m  ·  4/20 solved</text>
+<text x="4.0" y="340.0" font-size="11" fill="#a8a8a8" text-anchor="start" font-weight="400" opacity="1.0">the full 89-task suite extrapolates to ~33h per model — over a week of GPU time for six</text>
+</svg>

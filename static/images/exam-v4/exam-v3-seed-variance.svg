@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 424" width="100%" style="max-width:760px;height:auto" role="img" aria-label="exam_v3 scores on the R9700, five seeds per model" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+<title>exam_v3 scores on the R9700, five seeds per model</title>
+<text x="4.0" y="16.0" font-size="15" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">exam_v3 on the R9700: five seeds per model</text>
+<text x="4.0" y="34.0" font-size="12" fill="#a8a8a8" text-anchor="start" font-weight="400" opacity="1.0">one dot per seed, 13-point exam · amber marker = median</text>
+<line x1="218.0" y1="54" x2="218.0" y2="360" stroke="#3a3a3a" stroke-width="1"/>
+<line x1="295.2" y1="54" x2="295.2" y2="360" stroke="#3a3a3a" stroke-width="1"/>
+<line x1="372.5" y1="54" x2="372.5" y2="360" stroke="#3a3a3a" stroke-width="1"/>
+<line x1="449.7" y1="54" x2="449.7" y2="360" stroke="#3a3a3a" stroke-width="1"/>
+<line x1="526.9" y1="54" x2="526.9" y2="360" stroke="#3a3a3a" stroke-width="1"/>
+<line x1="604.2" y1="54" x2="604.2" y2="360" stroke="#3a3a3a" stroke-width="1"/>
+<text x="218.0" y="378.0" font-size="11" fill="#a8a8a8" text-anchor="middle" font-weight="400" opacity="1.0">0</text>
+<text x="295.2" y="378.0" font-size="11" fill="#a8a8a8" text-anchor="middle" font-weight="400" opacity="1.0">2</text>
+<text x="372.5" y="378.0" font-size="11" fill="#a8a8a8" text-anchor="middle" font-weight="400" opacity="1.0">4</text>
+<text x="449.7" y="378.0" font-size="11" fill="#a8a8a8" text-anchor="middle" font-weight="400" opacity="1.0">6</text>
+<text x="526.9" y="378.0" font-size="11" fill="#a8a8a8" text-anchor="middle" font-weight="400" opacity="1.0">8</text>
+<text x="604.2" y="378.0" font-size="11" fill="#a8a8a8" text-anchor="middle" font-weight="400" opacity="1.0">10</text>
+<text x="681.4" y="378.0" font-size="11" fill="#a8a8a8" text-anchor="middle" font-weight="400" opacity="1.0">12</text>
+<text x="469.0" y="400.0" font-size="12" fill="#a8a8a8" text-anchor="middle" font-weight="400" opacity="1.0">score / 13</text>
+<line x1="681.4" y1="54" x2="681.4" y2="360" stroke="#c08417" stroke-width="1" stroke-dasharray="4 3" opacity="0.8"/>
+<text x="194.0" y="80.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">Gemma 4 31B QAT</text>
+<line x1="411.1" y1="76.0" x2="681.4" y2="76.0" stroke="#3a3a3a" stroke-width="2"/>
+<circle cx="411.1" cy="76.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="642.8" cy="76.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="681.4" cy="65.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="681.4" cy="76.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="681.4" cy="87.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<path d="M681.4,95.0 L686.4,102.0 L676.4,102.0 Z" fill="#c08417"/>
+<text x="194.0" y="132.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">Qwen3.6 35B-A3B MoE + MTP</text>
+<line x1="449.7" y1="128.0" x2="642.8" y2="128.0" stroke="#3a3a3a" stroke-width="2"/>
+<circle cx="449.7" cy="122.5" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="449.7" cy="133.5" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="488.3" cy="128.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="604.2" cy="128.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="642.8" cy="128.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<path d="M488.3,147.0 L493.3,154.0 L483.3,154.0 Z" fill="#c08417"/>
+<text x="194.0" y="184.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">Gemma 4 31B PTQ</text>
+<line x1="411.1" y1="180.0" x2="681.4" y2="180.0" stroke="#3a3a3a" stroke-width="2"/>
+<circle cx="411.1" cy="169.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="411.1" cy="180.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="411.1" cy="191.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="642.8" cy="180.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="681.4" cy="180.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<path d="M411.1,199.0 L416.1,206.0 L406.1,206.0 Z" fill="#c08417"/>
+<text x="194.0" y="236.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">Gemma 4 26B-A4B MoE</text>
+<line x1="218.0" y1="232.0" x2="642.8" y2="232.0" stroke="#3a3a3a" stroke-width="2"/>
+<circle cx="218.0" cy="232.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="411.1" cy="226.5" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="411.1" cy="237.5" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="488.3" cy="232.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="642.8" cy="232.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<path d="M411.1,251.0 L416.1,258.0 L406.1,258.0 Z" fill="#c08417"/>
+<text x="194.0" y="288.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">Qwen3.6 27B + MTP</text>
+<line x1="218.0" y1="284.0" x2="449.7" y2="284.0" stroke="#3a3a3a" stroke-width="2"/>
+<circle cx="218.0" cy="273.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="218.0" cy="284.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="218.0" cy="295.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="449.7" cy="278.5" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="449.7" cy="289.5" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<path d="M218.0,303.0 L223.0,310.0 L213.0,310.0 Z" fill="#c08417"/>
+<text x="194.0" y="340.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">Gemma 4 E4B</text>
+<line x1="218.0" y1="336.0" x2="565.5" y2="336.0" stroke="#3a3a3a" stroke-width="2"/>
+<circle cx="218.0" cy="319.5" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="218.0" cy="330.5" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="218.0" cy="341.5" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="218.0" cy="352.5" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<circle cx="565.5" cy="336.0" r="5" fill="#3d8fc8" stroke="#181818" stroke-width="2"/>
+<path d="M218.0,355.0 L223.0,362.0 L213.0,362.0 Z" fill="#c08417"/>
+<text x="720.0" y="400.0" font-size="11" fill="#a8a8a8" text-anchor="end" font-weight="400" opacity="1.0">dashed → effective ceiling, 12</text>
+</svg>

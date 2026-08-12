@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 286" width="100%" style="max-width:760px;height:auto" role="img" aria-label="Decode throughput, Framework 13 versus R9700" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+<title>Decode throughput, Framework 13 versus R9700</title>
+<text x="4.0" y="16.0" font-size="15" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">Decode throughput, identical GGUF where marked</text>
+<text x="4.0" y="34.0" font-size="12" fill="#a8a8a8" text-anchor="start" font-weight="400" opacity="1.0">tokens/s at ~10k generated tokens, reasoning on</text>
+<rect x="4" y="46" width="10" height="10" rx="2" fill="#c08417"/>
+<text x="20.0" y="55.0" font-size="12" fill="#a8a8a8" text-anchor="start" font-weight="400" opacity="1.0">Framework 13</text>
+<rect x="116" y="46" width="10" height="10" rx="2" fill="#3d8fc8"/>
+<text x="132.0" y="55.0" font-size="12" fill="#a8a8a8" text-anchor="start" font-weight="400" opacity="1.0">hopper / R9700</text>
+<text x="194.0" y="82.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">Framework 13 · Radeon 890M</text>
+<text x="194.0" y="97.0" font-size="11" fill="#a8a8a8" text-anchor="end" font-weight="400" opacity="1.0">Qwen 35B-A3B MoE + MTP</text>
+<path d="M208.0,72 H245.6 a4,4 0 0 1 4,4 V88.0 a4,4 0 0 1 -4,4 H208.0 V72.0 Z" fill="#c08417"/>
+<text x="259.6" y="87.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">11.6</text>
+<text x="194.0" y="128.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">R9700 · same build</text>
+<text x="194.0" y="143.0" font-size="11" fill="#a8a8a8" text-anchor="end" font-weight="400" opacity="1.0">Qwen 35B-A3B MoE + MTP</text>
+<path d="M208.0,118 H658.2 a4,4 0 0 1 4,4 V134.0 a4,4 0 0 1 -4,4 H208.0 V118.0 Z" fill="#3d8fc8"/>
+<text x="672.2" y="133.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">126.7</text>
+<text x="194.0" y="174.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">R9700 · dense</text>
+<text x="194.0" y="189.0" font-size="11" fill="#a8a8a8" text-anchor="end" font-weight="400" opacity="1.0">Gemma 4 31B QAT, no drafter</text>
+<path d="M208.0,164 H291.8 a4,4 0 0 1 4,4 V180.0 a4,4 0 0 1 -4,4 H208.0 V164.0 Z" fill="#3d8fc8"/>
+<text x="305.8" y="179.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">24.5</text>
+<text x="194.0" y="220.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">R9700 · dense + MTP</text>
+<text x="194.0" y="235.0" font-size="11" fill="#a8a8a8" text-anchor="end" font-weight="400" opacity="1.0">Gemma 4 31B QAT, drafter n=4</text>
+<path d="M208.0,210 H405.8 a4,4 0 0 1 4,4 V226.0 a4,4 0 0 1 -4,4 H208.0 V210.0 Z" fill="#3d8fc8"/>
+<text x="419.8" y="225.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">56.3</text>
+<text x="4.0" y="278.0" font-size="11" fill="#a8a8a8" text-anchor="start" font-weight="400" opacity="1.0">10.9× on the identical MoE build; both machines measured under powersave</text>
+</svg>

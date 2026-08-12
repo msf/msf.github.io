@@ -2,6 +2,24 @@
  * Loaded after risotto.css.
  */
 
+/* risotto sets `overflow-wrap: anywhere` on tables. That also collapses a
+ * column's min-content width to one character, so auto-layout squeezes narrow
+ * columns until short words break mid-letter ("hard" → "har/d").
+ * `break-word` still breaks a token that would otherwise overflow, but leaves
+ * intrinsic sizing alone. */
+th, td {
+    overflow-wrap: break-word;
+}
+
+/* …which means a wide table can now exceed the viewport on a phone. Give it
+ * its own scroll box rather than letting it push the page sideways. Tables are
+ * shrink-to-fit either way, so narrow ones look unchanged. */
+table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
 /* Section list pages (post/papers/talks): visually separate entries.
  * Without this, each article's summary runs straight into the next
  * article's heading. */

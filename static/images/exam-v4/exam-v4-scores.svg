@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 346" width="100%" style="max-width:760px;height:auto" role="img" aria-label="exam_v4 weighted scores by difficulty tier" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+<title>exam_v4 weighted scores by difficulty tier</title>
+<text x="4.0" y="16.0" font-size="15" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">exam_v4: weighted score on strat20</text>
+<text x="4.0" y="34.0" font-size="12" fill="#a8a8a8" text-anchor="start" font-weight="400" opacity="1.0">20 Terminal-Bench 2.1 tasks, one attempt each · easy 1, medium 2, hard 3 · max 46</text>
+<rect x="4" y="46" width="10" height="10" rx="2" fill="#2a6b96"/>
+<text x="20.0" y="55.0" font-size="12" fill="#a8a8a8" text-anchor="start" font-weight="400" opacity="1.0">easy</text>
+<rect x="82" y="46" width="10" height="10" rx="2" fill="#3d8fc8"/>
+<text x="98.0" y="55.0" font-size="12" fill="#a8a8a8" text-anchor="start" font-weight="400" opacity="1.0">medium</text>
+<rect x="160" y="46" width="10" height="10" rx="2" fill="#7cc0ea"/>
+<text x="176.0" y="55.0" font-size="12" fill="#a8a8a8" text-anchor="start" font-weight="400" opacity="1.0">hard</text>
+<text x="194.0" y="91.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">qwen-35b-moe-mtp</text>
+<rect x="208" y="76" width="438.0" height="20" rx="4" fill="#3a3a3a" opacity="0.5"/>
+<path d="M211.8,76 H215.5 V96.0 H211.8 a3.7608695652173916,3.7608695652173916 0 0 1 -3.7608695652173916,-3.7608695652173916 V79.8 a3.7608695652173916,3.7608695652173916 0 0 1 3.7608695652173916,-3.7608695652173916 Z" fill="#2a6b96"/>
+<path d="M217.5,76 H310.7 V96.0 H217.5 V76.0 Z" fill="#3d8fc8"/>
+<path d="M312.7,76 H365.9 a4,4 0 0 1 4,4 V92.0 a4,4 0 0 1 -4,4 H312.7 V76.0 Z" fill="#7cc0ea"/>
+<text x="658.0" y="91.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">17/46 (37%)</text>
+<text x="194.0" y="131.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">qwen-27b-mtp</text>
+<rect x="208" y="116" width="438.0" height="20" rx="4" fill="#3a3a3a" opacity="0.5"/>
+<path d="M211.8,116 H215.5 V136.0 H211.8 a3.7608695652173916,3.7608695652173916 0 0 1 -3.7608695652173916,-3.7608695652173916 V119.8 a3.7608695652173916,3.7608695652173916 0 0 1 3.7608695652173916,-3.7608695652173916 Z" fill="#2a6b96"/>
+<path d="M217.5,116 H310.7 V136.0 H217.5 V116.0 Z" fill="#3d8fc8"/>
+<path d="M312.7,116 H337.3 a4,4 0 0 1 4,4 V132.0 a4,4 0 0 1 -4,4 H312.7 V116.0 Z" fill="#7cc0ea"/>
+<text x="658.0" y="131.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">14/46 (30%)</text>
+<text x="194.0" y="171.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">gemma-31b-qat</text>
+<rect x="208" y="156" width="438.0" height="20" rx="4" fill="#3a3a3a" opacity="0.5"/>
+<path d="M211.8,156 H215.5 V176.0 H211.8 a3.7608695652173916,3.7608695652173916 0 0 1 -3.7608695652173916,-3.7608695652173916 V159.8 a3.7608695652173916,3.7608695652173916 0 0 1 3.7608695652173916,-3.7608695652173916 Z" fill="#2a6b96"/>
+<path d="M217.5,156 H291.7 V176.0 H217.5 V156.0 Z" fill="#3d8fc8"/>
+<path d="M293.7,156 H318.3 a4,4 0 0 1 4,4 V172.0 a4,4 0 0 1 -4,4 H293.7 V156.0 Z" fill="#7cc0ea"/>
+<text x="658.0" y="171.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">12/46 (26%)</text>
+<text x="194.0" y="211.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">muse-glimmer-30b</text>
+<rect x="208" y="196" width="438.0" height="20" rx="4" fill="#3a3a3a" opacity="0.5"/>
+<path d="M211.8,196 H215.5 V216.0 H211.8 a3.7608695652173916,3.7608695652173916 0 0 1 -3.7608695652173916,-3.7608695652173916 V199.8 a3.7608695652173916,3.7608695652173916 0 0 1 3.7608695652173916,-3.7608695652173916 Z" fill="#2a6b96"/>
+<path d="M217.5,196 H272.7 V216.0 H217.5 V196.0 Z" fill="#3d8fc8"/>
+<path d="M274.7,196 H299.2 a4,4 0 0 1 4,4 V212.0 a4,4 0 0 1 -4,4 H274.7 V196.0 Z" fill="#7cc0ea"/>
+<text x="658.0" y="211.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">10/46 (22%)</text>
+<text x="194.0" y="251.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">qwen-27b-mtp-q6</text>
+<rect x="208" y="236" width="438.0" height="20" rx="4" fill="#3a3a3a" opacity="0.5"/>
+<path d="M211.8,236 H215.5 V256.0 H211.8 a3.7608695652173916,3.7608695652173916 0 0 1 -3.7608695652173916,-3.7608695652173916 V239.8 a3.7608695652173916,3.7608695652173916 0 0 1 3.7608695652173916,-3.7608695652173916 Z" fill="#2a6b96"/>
+<path d="M217.5,236 H289.7 a4,4 0 0 1 4,4 V252.0 a4,4 0 0 1 -4,4 H217.5 V236.0 Z" fill="#3d8fc8"/>
+<text x="658.0" y="251.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">9/46 (20%)</text>
+<text x="194.0" y="291.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">gemma-26b-moe</text>
+<rect x="208" y="276" width="438.0" height="20" rx="4" fill="#3a3a3a" opacity="0.5"/>
+<path d="M211.8,276 H215.5 V296.0 H211.8 a3.7608695652173916,3.7608695652173916 0 0 1 -3.7608695652173916,-3.7608695652173916 V279.8 a3.7608695652173916,3.7608695652173916 0 0 1 3.7608695652173916,-3.7608695652173916 Z" fill="#2a6b96"/>
+<path d="M217.5,276 H270.7 a4,4 0 0 1 4,4 V292.0 a4,4 0 0 1 -4,4 H217.5 V276.0 Z" fill="#3d8fc8"/>
+<text x="658.0" y="291.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">7/46 (15%)</text>
+<text x="4.0" y="338.0" font-size="11" fill="#a8a8a8" text-anchor="start" font-weight="400" opacity="1.0">tasks solved: 8, 7, 6, 5, 5, 4 of 20</text>
+</svg>

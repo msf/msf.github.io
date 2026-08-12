@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 470" width="100%" style="max-width:760px;height:auto" role="img" aria-label="Decode and prefill throughput per model during the exam_v4 runs" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+<title>Decode and prefill throughput per model during the exam_v4 runs</title>
+<text x="4.0" y="16.0" font-size="15" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">Throughput per model during the exam runs</text>
+<text x="4.0" y="34.0" font-size="12" fill="#a8a8a8" text-anchor="start" font-weight="400" opacity="1.0">rough pp/s and tg/s captured from the monitoring sidecar while the exams executed</text>
+<text x="4.0" y="60.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">Decode  ·  tokens/s</text>
+<text x="194.0" y="87.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">qwen-35b-moe-mtp</text>
+<path d="M208.0,74 H616.1 a4,4 0 0 1 4,4 V88.0 a4,4 0 0 1 -4,4 H208.0 V74.0 Z" fill="#3d8fc8"/>
+<text x="630.1" y="87.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">118</text>
+<text x="194.0" y="121.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">gemma-26b-moe</text>
+<path d="M208.0,108 H588.2 a4,4 0 0 1 4,4 V122.0 a4,4 0 0 1 -4,4 H208.0 V108.0 Z" fill="#3d8fc8"/>
+<text x="602.2" y="121.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">110</text>
+<text x="194.0" y="155.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">qwen-27b-mtp</text>
+<path d="M208.0,142 H375.1 a4,4 0 0 1 4,4 V156.0 a4,4 0 0 1 -4,4 H208.0 V142.0 Z" fill="#3d8fc8"/>
+<text x="389.1" y="155.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">49</text>
+<text x="194.0" y="189.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">gemma-31b-qat</text>
+<path d="M208.0,176 H366.0 a4,4 0 0 1 4,4 V190.0 a4,4 0 0 1 -4,4 H208.0 V176.0 Z" fill="#3d8fc8"/>
+<text x="380.0" y="189.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">46.4</text>
+<text x="194.0" y="223.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">muse-glimmer-30b</text>
+<path d="M208.0,210 H351.7 a4,4 0 0 1 4,4 V224.0 a4,4 0 0 1 -4,4 H208.0 V210.0 Z" fill="#3d8fc8"/>
+<text x="365.7" y="223.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">42.3</text>
+<text x="4.0" y="260.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">Prefill  ·  prompt tokens/s</text>
+<text x="194.0" y="287.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">qwen-35b-moe-mtp</text>
+<path d="M208.0,274 H611.3 a4,4 0 0 1 4,4 V288.0 a4,4 0 0 1 -4,4 H208.0 V274.0 Z" fill="#c08417"/>
+<text x="625.3" y="287.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">1,256</text>
+<text x="194.0" y="321.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">gemma-26b-moe</text>
+<path d="M208.0,308 H511.7 a4,4 0 0 1 4,4 V322.0 a4,4 0 0 1 -4,4 H208.0 V308.0 Z" fill="#c08417"/>
+<text x="525.7" y="321.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">949</text>
+<text x="194.0" y="355.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">qwen-27b-mtp</text>
+<path d="M208.0,342 H331.8 a4,4 0 0 1 4,4 V356.0 a4,4 0 0 1 -4,4 H208.0 V342.0 Z" fill="#c08417"/>
+<text x="345.8" y="355.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">394</text>
+<text x="194.0" y="389.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">gemma-31b-qat</text>
+<path d="M208.0,376 H322.4 a4,4 0 0 1 4,4 V390.0 a4,4 0 0 1 -4,4 H208.0 V376.0 Z" fill="#c08417"/>
+<text x="336.4" y="389.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">365</text>
+<text x="194.0" y="423.0" font-size="13" fill="#d8d8d8" text-anchor="end" font-weight="400" opacity="1.0">muse-glimmer-30b</text>
+<path d="M208.0,410 H315.9 a4,4 0 0 1 4,4 V424.0 a4,4 0 0 1 -4,4 H208.0 V410.0 Z" fill="#c08417"/>
+<text x="329.9" y="423.0" font-size="13" fill="#d8d8d8" text-anchor="start" font-weight="600" opacity="1.0">345</text>
+<text x="4.0" y="464.0" font-size="11" fill="#a8a8a8" text-anchor="start" font-weight="400" opacity="1.0">means over each run window · MoE models decode and prefill far faster than the dense ones</text>
+</svg>
