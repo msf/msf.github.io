@@ -79,6 +79,7 @@ def header(title, subtitle):
 def chart_seed_variance():
     rows = [
         ("Gemma 4 31B QAT", [11, 12, 12, 12, 5], 12),
+        ("Muse Glimmer 30B", [5, 0, 11, 12, 8], 8),
         ("Qwen3.6 35B-A3B MoE + MTP", [6, 11, 6, 7, 10], 7),
         ("Gemma 4 31B PTQ", [11, 5, 12, 5, 5], 5),
         ("Gemma 4 26B-A4B MoE", [7, 0, 5, 11, 5], 5),
