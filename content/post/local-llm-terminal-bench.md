@@ -1,126 +1,46 @@
 ---
-title: "local llm Exam v4"
-date: 2026-08-09T18:00:00+01:00
+title: "Terminal-Bench 2.1 on a consumer GPU: what is a little machine actually worth?"
+date: 2026-08-13T18:00:00+01:00
 ---
 
 *August 2026*[^1]
 
-*Part 5/5 — **Part 5** ← [Part 4](https://blog.mfilipe.eu/post/benchmarking_llms-v3-rebuild/) ← [Part 3](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/) ← [Part 2](https://blog.mfilipe.eu/post/local-llm-performance-framework13/) ← [Part 1](https://blog.mfilipe.eu/post/benchmarking-local-llms-go-coding/)*
+*Part 6/6 — **Part 6** ← [Part 5](https://blog.mfilipe.eu/post/local-llm-dense-models-r9700/) ← [Part 4](https://blog.mfilipe.eu/post/benchmarking_llms-v3-rebuild/) ← [Part 3](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/) ← [Part 2](https://blog.mfilipe.eu/post/local-llm-performance-framework13/) ← [Part 1](https://blog.mfilipe.eu/post/benchmarking-local-llms-go-coding/)*
 
 [^1]: Co-authored with Claude Opus 5.
 
-## Re-running exam_v3 on the R9700
+## Why an external benchmark
 
-I got a Radeon R9700 GPU for my server/desktop machine to play with LLMs and so
-wanted to test and compare my prior exams to what I could do on the new GPU.
-Both to check the performance but also because this hardware allows running the
-dense models at reasonable speeds (which were completely unviable on the laptop)
-and see how much better they would be on my little made up exam_v3. What the
-exam_v3 does is covered in the prior posts linked above.
+[Part 5](https://blog.mfilipe.eu/post/local-llm-dense-models-r9700/) ended with
+my own exam failing as a measuring stick. So this part swaps it for one I did
+not write: Terminal-Bench 2.1, a real benchmark that other people build, review
+and publish numbers against.
 
-So, to summarize, first let's test the best models that I tested on the
-Framework 13 again and see throughput differences, and the throughput of dense
-models on the GPU:
+That changes what the question is. It is no longer "which model wins my little
+Go exam", it is the thing I have actually been circling since post #1:
 
-![Decode throughput: Framework 13 at 11.6 t/s versus R9700 at 126.7 t/s on the identical Qwen 35B-A3B MoE build, plus dense Gemma at 24.5 t/s rising to 56.3 t/s with a speculative-decoding drafter](/images/exam-v4/throughput-fw13-vs-r9700.svg)
+**My hardware is a small consumer machine. How much value can I really get out
+of it, and what should I be running on it?**
 
-In summary, on the R9700, the dense models are fast enough and become genuine
-candidates for best models to use. The MoE become very fast models that can be
-used when we really want something 2-3x faster than what we get with the dense
-models. According to public testing and general knowledge, at these size of
-models (20-40B params) dense models are preferred. MoE models are the future and
-anything above 120B param is a MoE model, but when we're this compute/ram
-restricted, a MoE with 3B or 5B active params simply degrades more than a 27B
-dense model.
+A public benchmark is the only way to answer that honestly, because it puts my
+box on the same axis as everyone else's numbers. If a model scores 37% here and
+the published frontier numbers are far above it, that gap is the price of
+running locally — and it is worth knowing the size of that price rather than
+guessing at it.
 
-Another thing these tests cover is I tested with and without MTP on many models
-to improve the throughput (and to validate it was indeed faster).
-
-Models we will focus on (Q4 quantizations):
-
-- Qwen 3.6, 27B, dense
-- Qwen 3.6, 27B, dense (Q6 quant)
-- Qwen 3.6, 35B, A3B MoE model
-- Gemma4 31B, dense, Post-Trained Quantization (PTQ) unsloth
-- Gemma4 31B-QAT, dense, (this quantized should perform better)
-- Gemma4 26B, MoE model
-- Meta Muse-Glimmer, 30B, dense
-
-Two builds of Gemma 4 31B appear there. **PTQ** is Unsloth's post-training
-quantization of the original Gemma 4 release: quantization applied to finished
-weights. **QAT** is Google's later re-release, quantization-aware trained, where
-quantization is part of training rather than something done to the model
-afterwards.
-
-So, how do the dense models score on the exam_v3?
-
-![exam_v3 scores on the R9700: five seeds per model across seven models, showing that the spread within a model is as wide as the gaps between models, with Muse Glimmer spanning the full range from 0 to 12](/images/exam-v4/exam-v3-seed-variance.svg)
-
-The results are all over the place, the only thing that aligns with outside
-reality and theory is: indeed the Gemma4 QAT model performs measurably better
-than the PTQ one — a median of 12 against 5, at or above 11 in four attempts out
-of five against two out of five, on the same architecture and the same quant
-format. Both compiled in all five attempts, so the gap is in the answers, not in
-whether the code built.
-
-The rest of that table are harder to reconcile with what is known/found about
-these models on the internet:
-
-- Public evaluations, and the private results others report, place Qwen3.6 27B
-  dense ahead of the 35B-A3B MoE on the large majority of tests. This exam
-  reverses that: the MoE has a median of 7, the dense 27B a median of 0. Three
-  of the 27B's five attempts failed to compile at all.
-- Gemma 4 E4B, by some distance the smallest model in the table, recorded a top
-  score of 9. The 27B dense, the strongest of this group by public results,
-  topped out at 6.
-- Gemma 4 beat Qwen3.6 throughout. That part may well be real — the exam is Go,
-  and Google may simply have the better Go training data — but a table that also
-  produces the first two results is not in a position to establish it.
-
-The variance is the underlying problem. Qwen3.6 35B-A3B scored 6, 6, 7, 10, 11
-across five seeds, with nothing varying but the seed; Gemma 4 31B PTQ drew 5, 5,
-5, 11, 12. Muse Glimmer is the worst case — **0, 5, 8, 11, 12**, the entire
-usable range of the exam in five draws, and its zero is a single unused import:
-364 lines of structurally sound Go with a complete `main()`, with `"sync"` left
-in the import block unused, which Go's compiler treats as fatal. One dead line
-is the difference between 0/13 and a near-ceiling 12/13.
-
-So the spread within a model is as wide as the differences between models. A
-score that moves five points on the seed cannot separate models that sit a point
-or two apart, and no number published from this exam had ever carried that
-uncertainty, because it had never been measured — which means the two-seed
-rankings published in earlier parts of this series were largely noise.
-
-## Moving to an external benchmark
-
-The R9700 opens an option the laptop did not have. Known open-source benchmarks
+The R9700 is also what makes this possible at all. Known open-source benchmarks
 are usually not run by individuals because they take too long; at eleven times
-the throughput, a suite that needs many hours per model becomes affordable. Such
-suites also carry a maturity a personal exam does not have — in the tasks, in
-the methodology, and in the harness and tooling around them — and adopting one
-ends the open-ended work of re-inventing an LLM testing harness that is flawed
-anyway.
-
-Three reasons to stop maintaining exam_v3:
-
-1. **One-shot generation is no longer the interesting question.** Testing an
-   agentic flow with reasoning enabled is closer to how these models are
-   actually used. On the Framework 13, reasoning had to be off for runs to
-   finish in reasonable time; on the R9700 it does not.
-2. **The harness is a maintenance burden.** exam_v3's driver and grader are
-   fragile, and there is nothing to be gained from re-inventing them. The exam
-   carried a systematic −1 for months: one test required argument validation the
-   prompt never asked for, and it failed 38 consecutive times across every model
-   ever run here. A maintained third-party harness removes that work.
-3. **An open framework brings tasks and methodology that are not mine.** The
-   tasks are written and reviewed by other people, and the resulting numbers are
-   comparable to numbers published elsewhere.
+the throughput of the laptop, a suite that needs many hours per model becomes
+affordable. Such suites also carry a maturity a personal exam does not have — in
+the tasks, in the methodology, and in the harness and tooling around them — and
+adopting one ends the open-ended work of re-inventing an LLM testing harness
+that was flawed anyway.
 
 One qualification, since it applies to everything below. External does not mean
 rigorous. Most published benchmarks, Terminal-Bench included, run one attempt
 per task and report the pass rate as though it were a property of the model.
 Seeds are rarely varied, and the resulting variance is neither measured nor
-reported. What the exam_v3 table says about my own exam, it also says about
+reported. What Part 5's exam_v3 table says about my own exam, it also says about
 theirs; it is simply not usually stated.
 
 ## Terminal-Bench 2.1
@@ -373,7 +293,8 @@ bits buy nothing, subject to the sample-size caveat below.
 **n=20, one attempt each.** Differences of one or two tasks are inside the
 sampling noise of this design, and the whole six-model spread is ten points
 wide. The noise floor of this design has not been measured, and the exam_v3
-result above is a reminder of what that omission can hide. The ranking should be
+result in [Part 5](https://blog.mfilipe.eu/post/local-llm-dense-models-r9700/) is a
+reminder of what that omission can hide. The ranking should be
 read with that in mind.
 
 **One trial was thrown out and re-run.** Partway through the `gemma-26b-moe`
@@ -383,8 +304,9 @@ task in flight, `break-filter-js-from-html`, was re-run on its own and merged
 in. The other four jobs were checked against the swap log and were clean.
 
 **The v3 ranking and the v4 ranking are not the same ranking, and now there are
-numbers for it.** On this same host, exam_v3 scored `gemma-31b-qat` at a median
-12/13 over five seeds — its strongest result there. It sits third here. Running
+numbers for it.** On this same host, [Part 5](https://blog.mfilipe.eu/post/local-llm-dense-models-r9700/)'s
+exam_v3 run scored `gemma-31b-qat` at a median 12/13 over five seeds — its
+strongest result there. It sits third here. Running
 Muse Glimmer on both exams gave five models with a score on each, enough to
 actually check instead of assert:
 
@@ -459,7 +381,7 @@ hours — and that excludes `caffe-cifar-10`, which carries no estimate.
 
 Full method, per-model llama-server flags, job index, and reproduction steps:
 [`docs/reports/EXAM_V4_2026-08-09_TB21.md`](https://github.com/msf/msf.github.io/blob/main/blogpost/benchmarking_llms/docs/reports/EXAM_V4_2026-08-09_TB21.md).
-The exam_v3 re-run behind the first two charts:
+The exam_v3 re-run behind Part 5:
 [`docs/reports/EXAM_V3_2026-08-07_R9700.md`](https://github.com/msf/msf.github.io/blob/main/blogpost/benchmarking_llms/docs/reports/EXAM_V3_2026-08-07_R9700.md).
 Charts are generated by
 [`scripts/make-post-charts.py`](https://github.com/msf/msf.github.io/blob/main/blogpost/benchmarking_llms/scripts/make-post-charts.py).
