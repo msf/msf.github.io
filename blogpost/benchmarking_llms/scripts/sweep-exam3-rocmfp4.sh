@@ -103,6 +103,10 @@ cell_spec() {
     # is not.
     I) echo "gemma4-26b-moe-r9700|$SWAP_ENDPOINT|gemma-26b-moe" ;;
     J) echo "gemma4-e4b-r9700|$SWAP_ENDPOINT|gemma-e4b" ;;
+    # Qwen3.8-27B UD-Q4_K_XL, no MTP (none published for 3.8). Same quant and
+    # same samplers as cell H, so K-vs-H is the generation delta 3.6 → 3.8 with
+    # the quant held fixed. Timing is not comparable to H — H has a draft head.
+    K) echo "qwen38-27b-r9700|$SWAP_ENDPOINT|qwen38-27b" ;;
     *) return 1 ;;
   esac
 }

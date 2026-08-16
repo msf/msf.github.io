@@ -1,6 +1,9 @@
 ---
 title: "Terminal-Bench 2.1 on a consumer GPU: what is a little machine actually worth?"
 date: 2026-08-13T18:00:00+01:00
+_build:
+  list: never      # published, but not linked from the home page or RSS
+  render: always
 ---
 
 *August 2026*[^1]
@@ -152,7 +155,7 @@ rather than curated, it rebuilds byte-identically:
 scripts/tb21-make-subset.py --name strat20 --size 20 --seed 42
 ```
 
-The 20 tasks are listed in full in the [appendix](#appendix-the-20-tasks).
+The 20 tasks are listed in full in [Appendix A](#appendix-a-the-20-strat20-tasks).
 
 ## Running it
 
@@ -336,16 +339,166 @@ how long an expert would need. `circuit-fibsqrt` allows 60 minutes for work
 estimated at 16 hours. Failing that is not obviously a statement about the
 model.
 
+## Narrowing it to my own work
+
+`strat20` is drawn from all 89 tasks, and a good number of those 89 have nothing
+to do with what this machine is for. Modernizing COBOL, differential
+cryptanalysis of FEAL, cloning DNA sequences, fitting Bayesian networks in R,
+reproducing a CIFAR-10 training run: a model failing those tells me nothing
+about whether it can help me fix a git repository or debug an nginx config. A
+benchmark is meant to be a proxy for the work. This one was a proxy for somebody
+else's.
+
+So I built a second subset, `domain20`, drawn from an in-domain pool rather than
+all 89. Linux/Go/Rust systems work, self-hosted infrastructure and security stay
+in; exotic and legacy languages, cryptanalysis and pure maths, wet-lab science,
+Bayesian statistics, ML research and training, and rendering math go out.
+Thirty-seven tasks excluded on subject matter alone.
+
+### Reading the tests before trusting them
+
+Three more came out after actually reading the pass criteria, which turned out
+to be worth the hour it took.
+
+**`sparql-university`** estimates 800 minutes of expert time — and 10,000
+minutes for a junior — then grants the agent 900 seconds. A 53× shortfall. Pass
+is exact set-equality against a hardcoded result, and reaching it requires
+knowing which countries were EU members on a specific date. That is memorized
+world knowledge, not engineering, and no amount of SPARQL skill recovers it.
+
+**`count-dataset-tokens`** has a genuine defect in the test itself:
+
+```python
+expected_output = "79586"
+assert expected_output in actual_output
+```
+
+A substring check. `179586` passes. In the other direction it needs live
+HuggingFace dataset and tokenizer downloads mid-task and demands one exact
+integer, which any tokenizer-version drift changes. Brittle and
+false-positive-prone at the same time.
+
+**`break-filter-js-from-html`** requires headless Chrome and Selenium to observe
+an `alert()` firing after the filter runs — an adversarial XSS bypass that turns
+on recalling one specific trick. I have direct evidence of its instability: it
+passed in one run and timed out in another, same model, same evening, configs
+identical but for a speculative-decoding flag.
+
+Two more stayed in, flagged rather than dropped. `code-from-image` wants an
+exact SHA-256 after transcribing code from an image, no partial credit, with a
+text-only agent that must install its own OCR. `polyglot-rust-c` is the only
+task in all 89 tagged `no-verified-solution` — nobody has shown it is solvable.
+
+The difficulty labels are not calibrated either. `configure-git-webserver` is
+"hard" with a 15-minute expert estimate; `torch-pipeline-parallelism` is also
+"hard" at 240 minutes. Sixteen times the work, same label, same 900-second
+budget.
+
+### One timeout policy instead of none
+
+The timeouts are the clearest structural problem. Across the 89 tasks the agent
+budget ranges from 900 to 12,000 seconds, and the ratio of budget to the task's
+*own* expert-time estimate spans **0.06× to 3.3×**. There is no policy; the
+numbers look chosen per task and never reconciled.
+
+`build-pov-ray` is what that costs in practice. Measured on the first `domain20`
+run: it consumed its full **200.5 minutes** and failed, while the other four
+tasks in that run finished in **10 minutes combined**. One task, 95% of the
+elapsed time, for a guaranteed zero.
+
+So every task now gets the same 20 minutes. If an agent has not finished in 20
+minutes it is looping, out of its depth, or on a task that does not belong in a
+21-task examination — and `terminus-2` has no context management, so long runs
+degrade rather than progress. Harbor only offers timeout *multipliers*, which
+scale proportionally and cannot flatten an outlier, so the subset is
+materialized as copies with `[agent] timeout_sec` rewritten. The verifier's
+budget is deliberately left alone: starving it would turn slow test suites into
+fake failures, which measures the harness rather than the model. `build-pov-ray`
+now fails in 20.5 minutes instead of 200.5, which is the same information for a
+tenth of the electricity.
+
+### What the filter does to difficulty
+
+It makes the benchmark easier, and that is worth stating up front rather than
+discovering later:
+
+| pool | n | hard | hard % | median expert |
+|---|---:|---:|---:|---:|
+| full 89 | 89 | 30 | 34% | 60 min |
+| excluded | 40 | 18 | 45% | 90 min |
+| kept (in-domain) | 49 | 12 | 24% | 45 min |
+
+The exclusions took 18 of the benchmark's 30 hard tasks — 60% of them. That is
+not a mistake in execution, it is inherent to the filter: Terminal-Bench's hard
+tier is concentrated exactly in the science, maths and exotic-language work the
+domain filter removes. Difficulty and domain-relevance are correlated here, and
+you cannot narrow one without paying in the other.
+
+### The domain20 table
+
+Same agent, same scoring, one attempt per task, 21 tasks, 16h34m of GPU time for
+the whole sweep. Model names changed with a config cleanup along the way —
+speculative decoding is now on by default and no longer stated in the name, and
+the Qwen entries carry their version — so `qwen36-27b` here is the model called
+`qwen-27b-mtp` in the table further up.
+
+| model | easy | medium | hard | score | tasks | runtime |
+|---|---|---|---|---|---|---|
+| `qwen36-27b` | 1/1 | 10/15 | **3/5** | **30/46** (65%) | 14/21 | 3h11m |
+| `qwen38-27b` | 1/1 | **11/15** | 1/5 | **26/46** (57%) | 13/21 | 4h06m |
+| `qwen36-35b-moe` | 1/1 | 9/15 | 2/5 | **25/46** (54%) | 12/21 | 2h56m |
+| `gemma-31b-qat` | 1/1 | 9/15 | 1/5 | **22/46** (48%) | 11/21 | 2h55m |
+| `muse-glimmer-30b` | 1/1 | 9/15 | 1/5 | **22/46** (48%) | 11/21 | 3h24m |
+
+These are **not comparable to the `strat20` table above**: different population,
+deliberately narrower, and easier by the measurement in the previous section.
+The interesting part is not the absolute number but what moves.
+
+**Every model roughly doubles.** `qwen-35b-moe-mtp` goes from 17/46 to 25/46,
+`qwen-27b-mtp` from 14/46 to 30/46. Between 48% and 65% of my own kind of work
+is solvable by a model on a 32 GB consumer card, where the general benchmark
+said 15–37%. That is the number I actually wanted, and it is a far more useful
+answer than `strat20` gave.
+
+**The ordering changes.** `qwen-27b-mtp` was second on `strat20` and is first
+here; `qwen-35b-moe-mtp` led there and is third. The dense 27B also takes the
+hard tier 3/5 against the MoE's 2/5, so this is not purely a medium-tier
+artifact. Filtering to the domain does not merely rescale the general result —
+it reorders it.
+
+**Gemma is last again, and that is now twice.** `gemma-31b-qat` wins exam_v3 by
+a wide margin — median 12/13 where the best Qwen manages 6 — and finishes
+last-equal here, having finished fourth on `strat20`. Two independent task
+populations agree. If you are choosing a model to drive a terminal, one-shot
+code synthesis is the wrong instrument, and this is the third piece of evidence
+in this post pointing the same way.
+
+**Newer is not better.** Qwen3.8-27B, released mid-August, ran at the same size,
+quant and samplers as its 3.6 predecessor. It has the best medium tier of the
+five and the worst-equal hard tier, netting 4 points behind, and it is the
+slowest model in the sweep. On exam_v3 it beat 3.6 by six median points. Two
+exams, opposite directions; the reading I will defend is that 3.8 is better at
+writing code in one shot and no better at operating a terminal.
+
+The `n=1` caveat applies here harder than anywhere else in this post. The gap
+between first and third is two tasks, and three individual tasks were observed
+flipping between otherwise-identical reruns during this work. First-versus-last
+is a real difference; adjacent rows are not.
+
 ## What is next
 
-- Run `strat20` more than once per model, so the noise floor is measured rather
-  than assumed. This comes first, for the reasons given at the top.
+- Run the subsets more than once per model, so the noise floor is measured
+  rather than assumed. This comes first, for the reasons given at the top, and
+  three observed task flips make it more urgent than it was.
+- Re-weight `domain20` toward the hard tier. Proportional sampling from a pool
+  that is only 24% hard gives 5 hard tasks out of 21, and those five carry a
+  third of the weighted score.
 - Run the full 89 tasks on at least one model, to find out how much the subset
   distorts.
-- Look at the trajectories of the seven tasks nobody solved, which is the part a
+- Look at the trajectories of the tasks nobody solved, which is the part a
   pass/fail number throws away.
 
-## Appendix: the 20 tasks
+## Appendix A: the 20 `strat20` tasks
 
 `strat20`, drawn from Terminal-Bench 2.1 with seed 42. Descriptions and
 timeouts are the benchmark's own, read from each task's `task.toml`. "Expert"
@@ -385,3 +538,40 @@ The exam_v3 re-run behind Part 5:
 [`docs/reports/EXAM_V3_2026-08-07_R9700.md`](https://github.com/msf/msf.github.io/blob/main/blogpost/benchmarking_llms/docs/reports/EXAM_V3_2026-08-07_R9700.md).
 Charts are generated by
 [`scripts/make-post-charts.py`](https://github.com/msf/msf.github.io/blob/main/blogpost/benchmarking_llms/scripts/make-post-charts.py).
+
+## Appendix B: the 21 `domain20` tasks
+
+`domain20`, drawn with seed 42 from the 49-task in-domain pool, with every
+agent timeout capped at 20 minutes. Rebuilds byte-identically:
+
+```
+scripts/tb21-make-subset.py --name domain20 --size 20 --seed 42 \
+    --exclude-offdomain --cap-agent-timeout 1200
+```
+
+The "expert" column is Terminal-Bench's own estimate in minutes, left
+uncapped — the gap between it and the 20-minute budget is the point.
+
+| task | tier | agent timeout | expert | what it asks |
+|---|---|---:|---:|---|
+| `fix-git` | easy | 15m | 5 | Evaluates the ability to recover lost Git commits from a detached HEAD state and merge them back into the master branch. |
+| `build-cython-ext` | medium | 15m | 60 | Evaluates the ability to compile and install a Python package with Cython extensions from source while fixing NumPy 2.x compatibility issues. |
+| `build-pov-ray` | medium | 20m | 60 | Evaluates the ability to locate, download, patch, and compile legacy POV-Ray 2.2 raytracer from 1990s source archives on a modern system. |
+| `code-from-image` | medium | 20m | 30 | Evaluates an agent's ability to extract code from an image using OCR or vision models, implement the pseudocode logic with cryptographic hashing, and produce the correct output. |
+| `compile-compcert` | medium | 20m | 60 | Evaluates the ability to build the CompCert verified C compiler from source with proper configuration for the host architecture and dependencies. |
+| `extract-elf` | medium | 15m | 30 | Evaluates ability to parse ELF binary format and extract memory values from executable sections using Node.js. |
+| `headless-terminal` | medium | 15m | 120 | Implement a Python class that provides a headless terminal interface supporting interactive bash shells, modifier keys, startup file sourcing, and state persistence between commands. |
+| `hf-model-inference` | medium | 15m | 20 | Evaluates the ability to download a Hugging Face transformer model, create a Flask API for sentiment analysis, and run the service in the background with proper error handling. |
+| `kv-store-grpc` | medium | 15m | 15 | Evaluates the ability to build and deploy a gRPC-based key-value store server with Protocol Buffers, including service definition, code generation, implementation, and background process management. |
+| `log-summary-date-ranges` | medium | 15m | 75 | Evaluates the ability to analyze date-stamped log files, calculate counts across multiple date ranges, and generate structured CSV output. |
+| `mailman` | medium | 20m | 60 | Evaluates the ability to configure a functional mailing list server by integrating postfix and mailman3 with proper join/leave/announce workflows. |
+| `multi-source-data-merger` | medium | 15m | 30 | Evaluates an agent's ability to merge multi-format data sources (JSON, CSV, Parquet) with inconsistent schemas, applying field mappings and priority-based conflict resolution to produce standardized outputs. |
+| `openssl-selfsigned-cert` | medium | 15m | 20 | Evaluates an agent's ability to generate self-signed TLS certificates using OpenSSL, manage cryptographic keys with proper permissions, and create verification scripts. |
+| `regex-log` | medium | 15m | 45 | Tests the ability to construct a complex regular expression that matches dates in log lines containing valid IPv4 addresses while handling edge cases and boundary conditions. |
+| `sqlite-with-gcov` | medium | 15m | 30 | Evaluates the ability to compile SQLite from source with gcov instrumentation and make it available in the system PATH. |
+| `vulnerable-secret` | medium | 15m | 20 | Evaluates the agent's ability to analyze a binary executable, identify and exploit a buffer overflow vulnerability to bypass authentication, and extract a hidden secret flag. |
+| `cancel-async-tasks` | hard | 15m | 120 | Evaluates the ability to implement async task concurrency control with proper cleanup on cancellation, including the edge case of queued tasks. |
+| `configure-git-webserver` | hard | 15m | 15 | Evaluates the ability to configure a Git server with automatic deployment to an nginx web server using post-receive hooks. |
+| `fix-code-vulnerability` | hard | 15m | 120 | Evaluates the ability to identify and fix a CRLF injection vulnerability (CWE-93) in HTTP header handling code by adding input validation to reject control characters. |
+| `torch-pipeline-parallelism` | hard | 15m | 240 | Evaluates the ability to implement pipeline parallel training for LLaMA using PyTorch distributed primitives with all-forward-all-backward scheduling. |
+| `video-processing` | hard | 20m | 400 | Evaluates the ability to build a computer vision script that analyzes hurdle jump videos and extracts takeoff/landing frame numbers using OpenCV. |

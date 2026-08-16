@@ -1,6 +1,9 @@
 ---
 title: "Dense LLMs on a Radeon R9700, and the end of exam_v3"
 date: 2026-08-09T18:00:00+01:00
+_build:
+  list: never      # published, but not linked from the home page or RSS
+  render: always
 ---
 
 *August 2026*[^1]
@@ -41,6 +44,7 @@ Models we will focus on (Q4 quantizations):
 - Qwen 3.6, 27B, dense
 - Qwen 3.6, 27B, dense (Q6 quant)
 - Qwen 3.6, 35B, A3B MoE model
+- Qwen 3.8, 27B, dense (added later, after its August release)
 - Gemma4 31B, dense, Post-Trained Quantization (PTQ) unsloth
 - Gemma4 31B-QAT, dense, (this quantized should perform better)
 - Gemma4 26B, MoE model
@@ -54,7 +58,7 @@ afterwards.
 
 So, how do the dense models score on the exam_v3?
 
-![exam_v3 scores on the R9700: five seeds per model across seven models, showing that the spread within a model is as wide as the gaps between models, with Muse Glimmer spanning the full range from 0 to 12](/images/exam-v4/exam-v3-seed-variance.svg)
+![exam_v3 scores on the R9700: five seeds per model across eight models, showing that the spread within a model is as wide as the gaps between models, with Muse Glimmer spanning the full range from 0 to 12](/images/exam-v4/exam-v3-seed-variance.svg)
 
 The results are all over the place, the only thing that aligns with outside
 reality and theory is: indeed the Gemma4 QAT model performs measurably better
@@ -76,6 +80,13 @@ these models on the internet:
 - Gemma 4 beat Qwen3.6 throughout. That part may well be real — the exam is Go,
   and Google may simply have the better Go training data — but a table that also
   produces the first two results is not in a position to establish it.
+- Qwen3.8 27B, added when it was released in August, scores worse than a new
+  generation ought to: a median of 6 on the same quant and samplers, which is
+  mid-table, behind every Gemma 4 dense build and behind its own predecessor's
+  MoE sibling. It is a clear improvement on the Qwen3.6 27B it replaces —
+  median 6 against 0, and it compiled in four attempts out of five against two
+  — but "beats the model that could not compile" is a low bar, and on a
+  13-point exam with this much seed spread it is not a result worth leaning on.
 
 The variance is the underlying problem. Qwen3.6 35B-A3B scored 6, 6, 7, 10, 11
 across five seeds, with nothing varying but the seed; Gemma 4 31B PTQ drew 5, 5,
@@ -106,10 +117,16 @@ Three specific reasons, beyond the variance:
    fragile, and there is nothing to be gained from re-inventing them. The exam
    carried a systematic −1 for months: one test required argument validation the
    prompt never asked for, and it failed 38 consecutive times across every model
-   ever run here. A maintained third-party harness removes that work.
+   run here up to August 2026.[^2] A maintained third-party harness removes that
+   work.
 3. **The scoring gate is brutal in a way that has nothing to do with quality.**
    A single unused import is a zero, whatever the other 364 lines look like.
    That is a property of `go build`, not of the model.
 
 So the sensible move is to stop maintaining my own exam and adopt one that other
 people write, review and use. That is [Part 6](https://blog.mfilipe.eu/post/local-llm-terminal-bench/).
+
+[^2]: The streak has since been broken: Qwen3.8-27B passed that test on three of
+    five seeds on 2026-08-15, the first model here to do so. It does not change
+    the conclusion — a test that goes unpassed 38 times before anyone clears it
+    was measuring an omission in the prompt, not the models.
