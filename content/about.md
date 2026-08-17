@@ -6,9 +6,9 @@ date = "2026-05-21"
 
 I'm Miguel Mascarenhas Filipe, and I like to solve problems so much that one of my mottos is *"problems are waiting to be solved"*. On Twitter: *"Sui generis, creative & adventurer. Loves distributed systems, hard problems, and First Principles Engineering"*.
 
-At Dune I'm the Tech Lead and Software Engineer on the API team.
+At Dune I'm a Principal Engineer and Tech Lead.
 
-My professional background has a ~6y stint on large scale distributed (and high throughput) systems at AWS/DynamoDB and Microsoft/Skype, and ~12y on startup environments from 20 to 250 people.
+My professional background has a ~6y stint on large scale distributed (and high throughput) systems at AWS/DynamoDB and Microsoft/Skype, and ~12y on startup environments from 20 to 250 people. My [resume](/resume.pdf) has more detail on my work and experience.
 
 ## About this page
 
