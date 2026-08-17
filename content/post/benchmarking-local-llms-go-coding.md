@@ -1,17 +1,23 @@
 ---
 title: "I benchmarked 8 local LLMs writing Go on my Framework 13 AMD Strix Point"
-date: 2026-04-10T17:04:51+01:00
+date: 2026-02-21T17:14:22Z
 ---
 
 *Part 1/6 — [Part 6](https://blog.mfilipe.eu/post/local-llm-terminal-bench/) ← [Part 5](https://blog.mfilipe.eu/post/local-llm-dense-models-r9700/) ← [Part 4](https://blog.mfilipe.eu/post/benchmarking_llms-v3-rebuild/) ← [Part 3](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/) ← [Part 2](https://blog.mfilipe.eu/post/local-llm-performance-framework13/) ← **Part 1***
 
-I have a Framework 13 with a Ryzen AI 370HX and a bunch of GGUF models accumulating in `~/.cache/llama.cpp/`. I wanted to know if any of them can actually write Go that compiles and runs. Not vibes, not leaderboard numbers -- `go build` says yes or no. Goal was to have some sense of where local models are in terms of practical capability, being limited in size and available ram/compute
+> **This experiment is trying to use an LLM to write a blogpost in my own voice.**
+> This was directed by me, written mostly by Opus but I did proofread and edit (but
+> not deep edits). This note was added later, after having multiple parts out and as
+> a disclaimer that my voice is not truly captured, preserving it as part of the
+> story.
+
+I have a Framework 13 with a Ryzen AI 9 HX 370 and a bunch of GGUF models accumulating in `~/.cache/llama.cpp/`. I wanted to know if any of them can actually write Go that compiles and runs. Not vibes, not leaderboard numbers -- `go build` says yes or no. Goal was to have some sense of where local models are in terms of practical capability, being limited in size and available ram/compute.
 
 So I spent an evening with opencode + Claude Opus 4.6 scripting a bench harness in bash and threw all my local models at it. Claude wrote the harness, I drove the design decisions and kept fixing the dumb mistakes -- there were plenty on both sides.
 
 ## Setup
 
-Framework 13, Ryzen AI 370HX (so it has a Radeon 890M sharing VRAM w/ system RAM), 64GB. Running Ubuntu 24.04 with kernel 6.17, llama.cpp b7992 using the Vulkan backend (ROCm support for this GPU isn't there yet -- when it is, these numbers should improve significantly). `--temp 1 --seed 42 --jinja --single-turn`. 60 second timeout per task -- can I use a model with a very well scoped prompt to do real, simple Go code without errors?
+Framework 13, Ryzen AI 9 HX 370 (so it has a Radeon 890M sharing VRAM w/ system RAM), 64GB. Running Ubuntu 24.04 with kernel 6.17, llama.cpp b7992 using the Vulkan backend (ROCm support for this GPU isn't there yet -- when it is, these numbers should improve significantly). `--temp 1 --seed 42 --jinja --single-turn`. 60 second timeout per task -- can I use a model with a very well scoped prompt to do real, simple Go code without errors?
 
 I tried a bunch of models first just to get a feel for tok/s and RAM usage. The limiting factor on this laptop is throughput -- anything much bigger than ~20B params is too slow to be practical. The models below are what made the cut.
 
@@ -21,7 +27,7 @@ I tried a bunch of models first just to get a feel for tok/s and RAM usage. The 
 2. **Word frequency** -- read stdin, count words case-insensitively, print top 10. Needs bufio, strings, sort.
 3. **File tree walker** -- take a directory, walk it recursively, print files sorted by size descending. Needs os, filepath, real system interaction.
 
-Scoring is automated: compiles (1pt) + runs (1pt) + correct output (2pt) + error handling (1pt) = 5pt max. Correctness checked against `tr|sort|uniq -c` for wordfreq and `find` for filetree. No human judgment (Opus came up with the scoring)
+Scoring is automated: compiles (1pt) + runs (1pt) + correct output (2pt) + error handling (1pt) = 5pt max. Correctness checked against `tr|sort|uniq -c` for wordfreq and `find` for filetree. No human judgment (Opus came up with the scoring).
 
 I iterated on the prompts a lot. First version just said "write a Go program that prints factorial of 10" and Qwen3 literally printed `10`. Fair enough -- I wasn't specific. Final prompts explicitly mention `package main` and hint at which stdlib packages to use, otherwise half the models hallucinate APIs that don't exist (`fmt.Stdin`, etc).
 
@@ -52,7 +58,7 @@ qwen2.5-coder-3b-q8_0                2/15     58     factorial:2 wordfreq:0 file
 DeepSeek-R1-Distill-Qwen-14B         0/15      ?     factorial:0 wordfreq:0 filetree:0
 ```
 
-### Factorial (trivial -- 6/8 passed)
+### Factorial (trivial -- 5/8 passed)
 
 ```
 Model                               Tok/s  Wall     Result
@@ -118,7 +124,6 @@ TIMEOUT=120 MODEL_DIR=/my/models ./benchmarking_llms/scripts/bench.sh         # 
 
 Historical raw outputs are preserved under `benchmarking_llms/artifacts/history/play-bench_results/`. New ad-hoc runs from these legacy scripts default to `benchmarking_llms/artifacts/legacy-runs/`.
 
-Scripts: [bench.sh](benchmarking_llms/scripts/bench.sh) and [exam.sh](benchmarking_llms/scripts/exam.sh)
 
 ## What's next
 
@@ -168,11 +173,11 @@ The exam mode is the better test. Individual tasks with hints are too easy -- th
 
 ## Scripts
 
-- [bench.sh](benchmarking_llms/scripts/bench.sh) -- individual tasks, one prompt per model per task
-- [exam.sh](benchmarking_llms/scripts/exam.sh) -- exam mode, all three tasks in one prompt
+- [bench.sh](https://github.com/msf/msf.github.io/blob/e99bd342d19164312c8b2706e24450b27bf01a46/blogpost/benchmarking_llms/scripts/bench.sh) -- individual tasks, one prompt per model per task
+- [exam.sh](https://github.com/msf/msf.github.io/blob/e99bd342d19164312c8b2706e24450b27bf01a46/blogpost/benchmarking_llms/scripts/exam.sh) -- exam mode, all three tasks in one prompt
 
 ## Follow-ups
 
-*[This is how SLOW Local LLMs Are On My Framework 13](https://blog.mfilipe.eu/post/local-llm-performance-framework13/)* -- Feb 2026. Hardware deep-dive: why the numbers are what they are, ROCm vs Vulkan, memory bandwidth analysis, and speculative decoding.
+*[WHY Are Local LLMs So Slow On My Framework 13 AMD Strix Point](https://blog.mfilipe.eu/post/local-llm-performance-framework13/)* -- Feb 2026. Hardware deep-dive: why the numbers are what they are, ROCm vs Vulkan, memory bandwidth analysis, and speculative decoding.
 
-*[Gemma 4 vs Qwen3.5: harder benchmark](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/)* -- Apr 2026. Newer models (Qwen3.5, Gemma 4), a harder exam (modifying a real Go program), a quantization sweep, and proper infrastructure (llama-swap, Go exam driver).
+*[Gemma 4 vs Qwen3.5: benchmarking quantized local LLMs on Go coding](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/)* -- Apr 2026. Newer models (Qwen3.5, Gemma 4), a harder exam (modifying a real Go program), a quantization sweep, and proper infrastructure (llama-swap, Go exam driver).

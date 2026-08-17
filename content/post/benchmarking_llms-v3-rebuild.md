@@ -7,11 +7,16 @@ date: 2026-05-07T22:59:29+01:00
 
 *May 2026 — co-authored with Gemma 4*
 
+> **A note on the voice.** Look how different this post reads from the ones before
+> it. That is the experiment: I let Gemma 4 drive the whole thing and gave it a much
+> lighter review than Part 1 or Part 2 got. It produced a very bland, robotic post.
+> I am leaving it as it came out, because the contrast is the useful part.
+
 The transition from Exam V2 to V3 was necessitated by the discovery that the V2 harness was providing invalid scoring data, masking model instability and quantization failures.
 
 ## Setup
-- **Hardware**: Framework 13 (Ryzen AI 370HX, 64GB DDR5).
-- **Inference**: `llama-swap` via Vulkan. 
+- **Hardware**: Framework 13 (Ryzen AI 9 HX 370, 64GB DDR5).
+- **Inference**: `llama-swap` via Vulkan.
 - **KV Cache**: `q8_0` (fixed across all runs).
 - **Environment**: Go-based scraper resilience task (buffering, eviction, background flush).
 
@@ -37,7 +42,7 @@ The harness is [`exam-driver.go`](https://github.com/msf/msf.github.io/blob/e99b
 ## Results (Clean Rerun)
 *Note: All models were re-run to ensure a clean baseline on the new harness.*
 
-| Model | Best (Seed) | Avg (3 Seeds) | Notes |
+| Model | Best | Avg (3 seeds) | Notes |
 | :--- | :---: | :---: | :--- |
 | **Gemma 4 26B (MXFP4 + KV:Q8)** | **11/13** | **7.33** | Most stable; consistent across seeds. |
 | **GPT-OSS 20B (MXFP4 + KV:Q8)** | **11/13** | **5.33** | High variance: `5 / 0 / 11`. |

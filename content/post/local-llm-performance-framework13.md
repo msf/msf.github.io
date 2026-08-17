@@ -1,9 +1,9 @@
 ---
 title: "WHY Are Local LLMs So Slow On My Framework 13 AMD Strix Point"
-date: 2026-04-10T21:01:28Z
+date: 2026-02-22T00:19:58Z
 ---
 
-*February 2026 -- co-authored with Claude Opus 4.6.
+*February 2026 -- co-authored with Claude Opus 4.6.*
 
 *Part 2/6 — [Part 6](https://blog.mfilipe.eu/post/local-llm-terminal-bench/) ← [Part 5](https://blog.mfilipe.eu/post/local-llm-dense-models-r9700/) ← [Part 4](https://blog.mfilipe.eu/post/benchmarking_llms-v3-rebuild/) ← [Part 3](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/) ← **Part 2** ← [Part 1](https://blog.mfilipe.eu/post/benchmarking-local-llms-go-coding/)*
 
@@ -19,7 +19,7 @@ I went down this rabbit hole because I wanted to try ROCm instead of Vulkan, hop
 
 Framework Laptop 13, Ryzen AI 9 HX 370, Radeon 890M (iGPU), 64GB DDR5 (2x32GB SO-DIMMs, upgradeable to 96GB). Ubuntu 24.04, kernel 6.17.
 
-Everything below is backed by commands you can run yourself. Claude originally wrote "I got burned making claims I couldn't back up" here, which -- fair, but I kept saying "bullshit, show me evidence! prove it or find reliable references" until the numbers actually checked out. That's how this whole post works: Claude did the dirty work, I poked holes, challenged, we fix it together.
+Everything below is backed by commands you can run yourself. Claude originally wrote "I got burned making claims I couldn't back up" here, which -- fair, but I kept saying "bullshit, show me evidence! prove it or find reliable references" until the numbers actually checked out. That's how this whole post works: Claude did the dirty work, I poked holes, challenged, we fixed it together.
 
 ### CPU: 12 cores, 24 threads
 
@@ -84,7 +84,7 @@ gpt-oss-20B MXFP4 MoE (11.27 GiB):
 | power-saver (battery) | 234 ± 3 | 17.44 ± 0.14 |
 | **performance (AC)** | **390 ± 5** | **23.43 ± 0.11** |
 
-Power profile matters enormously: **pp more than doubles, tg gains 34-36%.** If you're benchmarking on battery, you're measuring your power governor, not your hardware.
+Power profile matters enormously: **pp gains 67-120%, tg gains 34-36%.** If you're benchmarking on battery, you're measuring your power governor, not your hardware.
 
 The MoE model (gpt-oss-20B) achieves higher tg despite being 2.4x larger because MoE only reads active expert weights per token, not the full 11.27 GiB.
 
@@ -277,4 +277,4 @@ ROCBLAS_TENSILE_LIBPATH=./llama-rocm/rocblas/library \
 ---
 
 *[Part 1: I benchmarked 8 local LLMs writing Go](https://blog.mfilipe.eu/post/benchmarking-local-llms-go-coding/)  
-[Part 3: Gemma 4 vs Qwen3.5 — harder benchmark](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/)*
+[Part 3: Gemma 4 vs Qwen3.5: benchmarking quantized local LLMs on Go coding](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/)*
