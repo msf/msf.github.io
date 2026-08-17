@@ -413,6 +413,49 @@ sample of five tasks, and should be read as such. On exam_v3 in
 by six median points. The two exams disagree, and the reading I will defend is
 that 3.8 writes better one-shot code and is no better at driving a terminal.
 
+**Qwen3.8's failures are mostly the clock, not the answer.** Splitting each
+model's 30 outcomes by *how* they failed is more informative than the score:
+
+| model | solved | timed out | wrong answer |
+|---|---:|---:|---:|
+| `qwen36-27b-q6` | 20 | 8 | 2 |
+| `qwen36-27b` | 19 | 9 | 2 |
+| `qwen38-27b` | 18 | **10** | 2 |
+| `qwen36-35b-moe` | 17 | 9 | 4 |
+| `muse-glimmer-30b` | 16 | 7 | 7 |
+| `gemma-31b-qat` | 14 | 8 | **8** |
+| `gemma-26b-moe` | 14 | 9 | 7 |
+
+Gemma fails by being wrong. Qwen3.8 fails by running out of time — ten timeouts
+against two wrong answers. Read from the agent trajectories, it emits a **median
+15,366 completion tokens per task against Qwen3.6-27B's 6,326**, at the same
+median step count, on the same tasks. On `crack-7z-hash` — a task the benchmark
+estimates at five expert minutes — 3.6 solved it in 3,659 tokens and 17 steps
+while 3.8 spent 15,152 tokens over 25 steps and hit the cap.
+
+Two things compound. A direct probe on an identical long prompt puts 3.8's
+speculative draft acceptance at **47.2% against 3.6's 65.7%**, which is the
+whole of the decode gap (41.8 vs 52.9 tokens/s) — same drafter type, same depth,
+a weaker MTP head. So 3.8 generates well over twice the tokens and produces each
+one more slowly.
+
+The same probe suggests the shared `--reasoning-budget 8192` is *binding* on 3.8
+and not on 3.6, though this one is inference rather than measurement: 3.8's
+12,904 completion tokens minus a capped 8,192 of thinking leaves 4,712 for the
+answer, and its content is 16,565 characters — 3.5 per token, right for
+code-heavy text. The same arithmetic is impossible for 3.6, whose 7,931 total
+sits below the cap entirely. llama.cpp does not log budget exhaustion and
+`usage` does not break it out, so this needs a run at a raised budget to
+confirm.
+
+Which means part of Qwen3.8's result here is a property of my run configuration,
+not of the model. Every arm shares one reasoning budget and one 20-minute
+timeout; that is what makes the table comparable, and it is also a setting that
+suits some models better than others. A re-run of 3.8 at a larger budget is
+queued, and if it moves the score then the honest statement becomes "3.8 needs a
+different configuration from the one every other model here shares" rather than
+"3.8 is no better".
+
 **Q6 edges Q4, and not by enough to matter.** Same Qwen3.6-27B checkpoint, two
 quantizations, identical samplers and drafter depth. Q6 takes it 41/64 to 40/64
 on the largest sample here. But the sign is not stable: Q4 led by 5 points on
@@ -485,8 +528,18 @@ also uniform, which the benchmark's own budgets are not.
   24% hard gives 5 hard tasks out of 30, and those five carry a quarter of the
   weighted score.
 - Run the full 89 on one model, to quantify how much any subset distorts.
+- Re-run Qwen3.8 at a raised `--reasoning-budget`, to find out how much of its
+  result is the shared configuration rather than the model. Three outcomes and
+  all of them are useful: the score moves, in which case per-model budgets are
+  needed for a fair table; the tokens grow and the score does not, in which case
+  the cap was cutting its losses; or nothing changes and the arithmetic above is
+  wrong.
 - Test Muse Glimmer at `xhigh` reasoning, the strength its own model card
   recommends for agentic work, instead of the `high` default used here.
+- There are no official Qwen GGUFs. The Qwen org publishes safetensors and FP8
+  only, so every quantized number here — and everyone else's — rests on a
+  third-party conversion. Worth keeping in view when comparing against vendor
+  benchmarks run on the original weights.
 
 ## Appendix A: the 30 `domain30` tasks
 
