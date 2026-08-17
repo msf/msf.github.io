@@ -20,8 +20,8 @@ set -uo pipefail
 LAB=$(cd "$(dirname "$0")/.." && pwd)
 cd "$LAB"
 
-MODELS=(qwen36-35b-moe qwen36-27b qwen38-27b gemma-31b-qat muse-glimmer-30b)
-SUBSET=domain20   # built with --cap-agent-timeout 1200; see tb21-make-subset.py
+MODELS=(${MODELS_OVERRIDE:-qwen36-35b-moe qwen36-27b qwen38-27b gemma-31b-qat muse-glimmer-30b})
+SUBSET="${SUBSET_OVERRIDE:-domain20}"   # built with --cap-agent-timeout 1200
 LOGDIR="$LAB/artifacts/logs/domain20-sweep"
 mkdir -p "$LOGDIR"
 

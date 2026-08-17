@@ -92,30 +92,41 @@ agent's exit — a task can hit its timeout and still be scored as solved.
 - **Host:** `hopper` — AMD Ryzen 5 8500G, 32 GB DDR5, Debian 13 (trixie),
   kernel 7.0.9.
 - **GPU:** Radeon AI PRO R9700 (Navi 48), 32 GiB VRAM, Vulkan/RADV.
-- **Runtime:** llama.cpp b10025 behind llama-swap v211, configured as a single
-  exclusive group so exactly one model is resident at a time. Harbor's first
-  request to a different model name triggers the swap.
+- **Runtime:** llama-swap v211, configured as a single exclusive group so
+  exactly one model is resident at a time; Harbor's first request to a different
+  model name triggers the swap. llama.cpp b10025 for the `strat20` runs,
+  b10362 for `domain30` — the bump was forced by Muse Glimmer's architecture and
+  every flag in use was re-checked against the new `--help` before switching.
 - **Context and thinking:** `-c 131072 --parallel 1 --reasoning-budget 8192`.
   Thinking on for every arm, capped at 8192 tokens per turn, `--predict 32768`
   bounding the whole turn.
 - **KV cache:** `q8_0` for both K and V, flash attention on.
 
-Six models, five of them Unsloth GGUFs with speculative decoding via
-multi-token prediction, plus Meta's own build of Muse Glimmer:
+Seven models, six of them Unsloth GGUFs with speculative decoding via
+multi-token prediction, plus Meta's own build of Muse Glimmer. Every model here
+runs with drafting on:
 
 | name | weights | quant | file | samplers |
 |---|---|---|---|---|
-| `qwen-35b-moe-mtp` | Qwen3.6-35B-A3B | UD-Q4_K_XL | 22 GB | temp 0.7 / top_p 0.95 / top_k 20 |
-| `qwen-27b-mtp` | Qwen3.6-27B | UD-Q4_K_XL | 17 GB | temp 0.7 / top_p 0.95 / top_k 20 |
-| `qwen-27b-mtp-q6` | Qwen3.6-27B | UD-Q6_K_XL | 25 GB | temp 0.7 / top_p 0.95 / top_k 20 |
+| `qwen36-35b-moe` | Qwen3.6-35B-A3B | UD-Q4_K_XL | 22 GB | temp 0.7 / top_p 0.95 / top_k 20 |
+| `qwen36-27b` | Qwen3.6-27B | UD-Q4_K_XL | 17 GB | temp 0.7 / top_p 0.95 / top_k 20 |
+| `qwen36-27b-q6` | Qwen3.6-27B | UD-Q6_K_XL | 25 GB | temp 0.7 / top_p 0.95 / top_k 20 |
+| `qwen38-27b` | Qwen3.8-27B | UD-Q4_K_XL | 17 GB | temp 1.0 / top_p 0.95 / top_k 20 |
 | `gemma-31b-qat` | Gemma 4 31B QAT | UD-Q4_K_XL | 17 GB | temp 1.0 / top_p 0.95 / top_k 64 |
 | `gemma-26b-moe` | Gemma 4 26B-A4B QAT | UD-Q4_K_XL | 14 GB | temp 1.0 / top_p 0.95 / top_k 64 |
 | `muse-glimmer-30b` | Muse Glimmer 30B | kquant-dynamic | 18 GB | temp 1.0 / top_p 0.95 / top_k 64 |
 
-Samplers are each vendor's published defaults, not tuned here. Qwen's MTP head
-is embedded in the GGUF; Gemma 4's is a separate ~280 MB drafter file passed
-with `--model-draft`, which landed in llama.cpp as the `GEMMA4_ASSISTANT` arch
-in PR #23398.
+Samplers are each vendor's published defaults, not tuned here — Qwen3.8's are
+Unsloth's *thinking-mode* set, which differs from their instruct-mode one on
+temperature and top_p. Qwen's MTP head is embedded in the GGUF; Gemma 4's is a
+separate ~280 MB drafter file passed with `--model-draft`, which landed in
+llama.cpp as the `GEMMA4_ASSISTANT` arch in PR #23398.
+
+A warning worth passing on, since it cost a full sweep here: `--spec-type`
+defaults to `none`. Qwen3.8 ships its MTP head baked into the *default* GGUF,
+unlike 3.6 which needed a separate upload — so the weights load, the file size
+looks right, and the drafter is silently never used. It shows up only as decode
+running at 25 t/s instead of 42. Check the tensor table, not the filename.
 
 Muse Glimmer is the odd one out on three counts. Its quant is Meta's own
 "dynamic" build rather than an Unsloth one, sized by the vendor for a 32 GB
@@ -129,244 +140,54 @@ switched off — the chat template opens the thinking channel unconditionally, s
 only the strength (`low`/`medium`/`high`/`xhigh`, default `high`) and the token
 budget are controllable.
 
-## 20 tasks out of 89
+## Choosing the tasks
 
-The full suite extrapolates to roughly 33 hours per model. Six models is over a
-week of GPU time, so the sweep runs on a subset.
+The full suite is roughly 33 hours per model. Seven models is over a week of
+GPU time, so the sweep runs on a subset — and choosing that subset turned out to
+matter more than anything else in this post.
 
-The first subset was 12 tasks picked by hand. `qwen-35b-moe-mtp` scored 10/12 —
-83%. On inspection the selection skewed toward short agent timeouts and the
-easy tier, because those are the tasks that are quick to eyeball. It was
-discarded: hand-picking the subset repeats the problem with writing the exam,
-one level up.
+The first attempt was 12 tasks picked by hand. The 35B MoE scored 10/12, 83%.
+The selection had skewed toward short agent timeouts and the easy tier, because
+those are the tasks that are quick to eyeball. Discarded: hand-picking the
+subset repeats the problem with writing your own exam, one level up.
 
-The replacement, `strat20`, is drawn by a script:
+The replacement, `strat20`, was drawn by a script — proportional to the real
+89-task difficulty mix, random within each tier, seed 42. That removed the
+selection bias, rebuilt byte-identically, and produced a defensible table. It is
+in [Appendix B](#appendix-b-strat20-the-earlier-random-subset), and it is the
+version of this post I nearly published.
 
-- proportional to the real 89-task difficulty mix, giving **1 easy / 12 medium /
-  7 hard**;
-- random *within* each tier, seed 42;
-- materialized as a directory of symlinks into the task cache, so Harbor takes
-  it as one `-p` argument.
+Then I read the tasks, and stopped trusting it.
 
-Same model, same settings, new subset: 8/20 instead of 10/12. Being generated
-rather than curated, it rebuilds byte-identically:
+### It is a proxy for someone else's job
 
-```
-scripts/tb21-make-subset.py --name strat20 --size 20 --seed 42
-```
+Modernizing COBOL. Differential cryptanalysis of a FEAL cipher. Designing PCR
+primers for site-directed mutagenesis. Fitting Bayesian networks in R.
+Reproducing a CIFAR-10 training run on Caffe 1.0. Those are real tasks and
+somebody should benchmark them; a model failing them tells me nothing about
+whether it can help me recover a detached-HEAD git repository or configure
+nginx.
 
-The 20 tasks are listed in full in [Appendix A](#appendix-a-the-20-strat20-tasks).
+A benchmark is a proxy for the work. Drawing proportionally from all 89 tasks
+gave me an unbiased sample of a job that is not mine.
 
-## Running it
-
-One attempt per task, one trial at a time, so only one model is ever resident on
-the GPU. Getting Harbor to run hit a few snags; the specifics and the exact
-invocation are in the
-[run report](https://github.com/msf/msf.github.io/blob/main/blogpost/benchmarking_llms/docs/reports/EXAM_V4_2026-08-09_TB21.md).
-
-## Results
-
-Tier weights: **easy = 1, medium = 2, hard = 3**, so `strat20`'s maximum is
-`1×1 + 12×2 + 7×3 = 46` points.
-
-![exam_v4 weighted scores: qwen-35b-moe-mtp 17/46, qwen-27b-mtp 14/46, gemma-31b-qat 12/46, muse-glimmer-30b 10/46, qwen-27b-mtp-q6 9/46, gemma-26b-moe 7/46, split by difficulty tier](/images/exam-v4/exam-v4-scores.svg)
-
-| model | easy | medium | hard | score | tasks | runtime | per task |
-|---|---|---|---|---|---|---|---|
-| `qwen-35b-moe-mtp` | 1/1 | 5/12 | 2/7 | **17/46** (37%) | 8/20 | 6h08m | 18m |
-| `qwen-27b-mtp` | 1/1 | 5/12 | 1/7 | **14/46** (30%) | 7/20 | 7h15m | 21m |
-| `gemma-31b-qat` | 1/1 | 4/12 | 1/7 | **12/46** (26%) | 6/20 | 7h36m | 22m |
-| `muse-glimmer-30b` | 1/1 | 3/12 | 1/7 | **10/46** (22%) | 5/20 | 6h42m | 20m |
-| `qwen-27b-mtp-q6` | 1/1 | 4/12 | 0/7 | **9/46** (20%) | 5/20 | 7h13m | 21m |
-| `gemma-26b-moe` | 1/1 | 3/12 | 0/7 | **7/46** (15%) | 4/20 | 8h10m | 24m |
-
-No model clears 40%. On a subset drawn to match the real difficulty mix the
-hard tier is nearly untouched: five solves across 42 model-task pairs.
-
-### The sixth row
-
-Muse Glimmer 30B arrived after the rest and is the reason this table has six
-rows. It is Meta's first dense 30B, published on 9 August and built explicitly
-for local agentic work, which makes it the most on-topic model here. One
-caveat: its architecture needs llama.cpp b10353 or newer, against b10025 for
-the other five, so this is the single row that is not strictly like-for-like.
-
-It lands mid-pack. The two-point gap to `gemma-31b-qat` is one task, which is
-inside the noise this design admits, so the honest reading is "fourth, roughly
-tied for third" rather than a clean ranking.
-
-The more interesting number is the one that does not appear in the table. Meta
-publish **51.7%** for this model on Terminal-Bench 2.1 with terminus-2 — the
-same benchmark and the same agent. This run scored 22%. The run was clean:
-nothing truncated, no agent errors, no evictions, ~39 tokens/s sustained across
-the whole 6h42m, so the gap is not a broken harness. What differs is unmeasured.
-`strat20` is 20 hard-weighted tasks rather than the full 89. Thinking is capped
-at 8192 tokens per turn on every arm here. And the model ran at its default
-reasoning strength of `high` rather than the `xhigh` its own card recommends for
-agentic work — the cheapest of the three to test, and untested so far.
-
-Publishing a number less than half the vendor's own is worth stating plainly
-rather than smoothing over: on this subset, under this harness, with these
-caps, it scored 22%. Whether that is the model or the setup is genuinely open.
-
-### Wall-clock cost
-
-![Wall-clock runtime per model: 6h08m to 8h10m for 20 tasks, with the slowest arm solving the fewest tasks and Muse Glimmer breaking the pattern by being fast and mid-scoring](/images/exam-v4/exam-v4-runtime.svg)
-
-The six arms took 43h06m of GPU time for 120 model-task attempts, and the
-ordering is broadly inverted: the slowest arm is the weakest model. A solved
-task finishes in about 220 seconds; a failed one burns its entire agent timeout.
-The runtime column is therefore mostly a failure counter rather than a speed
-measurement. The 20 tasks sum to 630 minutes of agent timeout, the ceiling a
-model that failed everything would reach: 10h30m.
-
-Muse Glimmer is the exception that shows where the rule stops. It solved 5 tasks
-— fewer than `gemma-31b-qat`'s 6 and `qwen-27b-mtp`'s 7 — yet finished faster
-than both, second-quickest overall at 6h42m.
-
-The obvious explanation would be that it decodes faster. It does not.
-
-![Decode and prefill throughput per model measured during the exam runs: MoE models around 110-118 tokens/s decode, dense models 42-49, with prefill from 345 to 1256 prompt tokens/s](/images/exam-v4/exam-v4-throughput-by-model.svg)
-
-Sampled during the runs themselves, Muse decodes at 42.3 tokens/s against
-`gemma-31b-qat`'s 46.4 — slightly *slower*, on comparable prefill. The MoE
-models are in a different class again at 110–118, which is the clearest thing
-this figure shows: active-parameter count, not total size, sets decode speed.
-
-What separates Muse is how much it says. It emitted 17,900 completion tokens per
-task against Gemma's 26,700 — about a third fewer — while taking nearly three
-times as many turns to do it, 33 per task against 12. That is roughly 540 tokens
-per turn versus 2,200: many short commands, look at the result, another short
-command, where Gemma writes a long block and then inspects. Fewer tokens at a
-similar rate is less time, even though the turn count is higher.
-
-So the runtime column is not purely a failure counter. It is closer to *total
-tokens generated* divided by decode rate, and a model's turn-taking style moves
-that as much as its score does.
-
-This is why the subset exists at 20 rather than 89. It also means the cost of
-the benchmark is set mostly by the timeouts of the tasks a model fails, so a
-weaker model is usually more expensive to evaluate than a stronger one — unless,
-like Muse, it is terse enough to lose in fewer words.
-
-### Per task
-
-| task | tier | 35B MoE | 27B | 31B QAT | Muse | 27B Q6 | 26B MoE |
-|---|---|---|---|---|---|---|---|
-| `cobol-modernization` | easy | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `break-filter-js-from-html` | medium | — | — | — | — | — | — |
-| `caffe-cifar-10` | medium | ✅ | — | — | — | — | — |
-| `chess-best-move` | medium | — | — | — | — | — | — |
-| `compile-compcert` | medium | — | — | — | — | — | — |
-| `distribution-search` | medium | ✅ | ✅ | — | ✅ | ✅ | — |
-| `dna-insert` | medium | — | — | — | — | — | — |
-| `filter-js-from-html` | medium | — | — | — | — | — | — |
-| `nginx-request-logging` | medium | ✅ | ✅ | ✅ | — | ✅ | ✅ |
-| `portfolio-optimization` | medium | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `query-optimize` | medium | — | ✅ | ✅ | — | — | — |
-| `rstan-to-pystan` | medium | — | — | — | — | — | — |
-| `vulnerable-secret` | medium | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `bn-fit-modify` | hard | — | ✅ | ✅ | ✅ | — | — |
-| `cancel-async-tasks` | hard | ✅ | — | — | — | — | — |
-| `circuit-fibsqrt` | hard | — | — | — | — | — | — |
-| `feal-differential-cryptanalysis` | hard | — | — | — | — | — | — |
-| `feal-linear-cryptanalysis` | hard | — | — | — | — | — | — |
-| `make-doom-for-mips` | hard | — | — | — | — | — | — |
-| `model-extraction-relu-logits` | hard | ✅ | — | — | — | — | — |
-
-Three tasks were solved by every model. Ten were solved by none.
-
-`nginx-request-logging` is the reason the first number is three rather than
-four: it was the one task every one of the original five solved, and Muse
-Glimmer is the only model to have missed it. Meanwhile Muse solved
-`bn-fit-modify`, a hard task that both `qwen-27b-mtp-q6` and `gemma-26b-moe`
-failed. The overlap between models is much less orderly than the score column
-suggests — being better on aggregate does not mean solving a superset.
-
-## Things worth writing down
-
-**Q4 and Q6 of the same checkpoint agree on 18 of 20 tasks.** `qwen-27b-mtp` and
-`qwen-27b-mtp-q6` are the same Qwen3.6-27B-MTP weights at two quantization
-levels, identical samplers, context, and drafter depth. The two tasks they
-disagree on — `bn-fit-modify` and `query-optimize` — were both solved by Q4 and
-not by Q6. Wall time was 7h15m against 7h13m. Q6 holds 6.7 GiB more weights in
-VRAM, leaving about 4 GiB of headroom instead of 11. On this evidence the extra
-bits buy nothing, subject to the sample-size caveat below.
-
-**n=20, one attempt each.** Differences of one or two tasks are inside the
-sampling noise of this design, and the whole six-model spread is ten points
-wide. The noise floor of this design has not been measured, and the exam_v3
-result in [Part 5](https://blog.mfilipe.eu/post/local-llm-dense-models-r9700/) is a
-reminder of what that omission can hide. The ranking should be
-read with that in mind.
-
-**One trial was thrown out and re-run.** Partway through the `gemma-26b-moe`
-job, an unrelated cron job on the same host asked llama-swap for a different
-model, evicting the resident one four times between 08:00 and 08:05 UTC. The
-task in flight, `break-filter-js-from-html`, was re-run on its own and merged
-in. The other four jobs were checked against the swap log and were clean.
-
-**The v3 ranking and the v4 ranking are not the same ranking, and now there are
-numbers for it.** On this same host, [Part 5](https://blog.mfilipe.eu/post/local-llm-dense-models-r9700/)'s
-exam_v3 run scored `gemma-31b-qat` at a median 12/13 over five seeds — its
-strongest result there. It sits third here. Running
-Muse Glimmer on both exams gave five models with a score on each, enough to
-actually check instead of assert:
-
-| model | exam_v3 median /13 | rank | exam_v4 /46 | rank |
-|---|---:|---:|---:|---:|
-| `gemma-31b-qat` | 12 | 1 | 12 | 3 |
-| `muse-glimmer-30b` | 8 | 2 | 10 | 4 |
-| `qwen-35b-moe-mtp` | 7 | 3 | 17 | 1 |
-| `gemma-26b-moe` | 5 | 4 | 7 | 5 |
-| `qwen-27b-mtp` | 0 | 5 | 14 | 2 |
-
-Spearman's rank correlation is **−0.10**: no relationship. `qwen-27b-mtp` is the
-clearest case — last on v3, where it failed to produce compilable Go in three of
-five attempts, and second on v4, where it gets a terminal and can read its own
-error messages. One unused import is a zero on v3 and a non-event on v4, because
-the compiler tells the model and the model fixes it.
-
-The honest caveat is that five models with ±6-point seed spread on the v3 side
-cannot establish a *negative* correlation either; −0.10 is indistinguishable
-from zero at this sample size. The defensible claim is narrower: there is no
-evidence that one-shot code synthesis predicts agentic performance, and the
-cases where they disagree disagree very loudly.
-
-**Some hard tasks may be out of reach for reasons other than capability.** The
-appendix lists each task's agent timeout beside the benchmark's own estimate of
-how long an expert would need. `circuit-fibsqrt` allows 60 minutes for work
-estimated at 16 hours. Failing that is not obviously a statement about the
-model.
-
-## Narrowing it to my own work
-
-`strat20` is drawn from all 89 tasks, and a good number of those 89 have nothing
-to do with what this machine is for. Modernizing COBOL, differential
-cryptanalysis of FEAL, cloning DNA sequences, fitting Bayesian networks in R,
-reproducing a CIFAR-10 training run: a model failing those tells me nothing
-about whether it can help me fix a git repository or debug an nginx config. A
-benchmark is meant to be a proxy for the work. This one was a proxy for somebody
-else's.
-
-So I built a second subset, `domain20`, drawn from an in-domain pool rather than
-all 89. Linux/Go/Rust systems work, self-hosted infrastructure and security stay
-in; exotic and legacy languages, cryptanalysis and pure maths, wet-lab science,
-Bayesian statistics, ML research and training, and rendering math go out.
-Thirty-seven tasks excluded on subject matter alone.
+So the second subset, `domain30`, draws from an in-domain pool instead: systems
+work, self-hosted infrastructure, security, and the kind of Linux/Go/Rust
+plumbing this machine exists for. Out go exotic and legacy languages,
+cryptanalysis and pure maths, wet-lab science, Bayesian statistics, ML research
+and training, and rendering math — 37 tasks on subject matter.
 
 ### Reading the tests before trusting them
 
-Three more came out after actually reading the pass criteria, which turned out
-to be worth the hour it took.
+Three more came out after reading the pass criteria rather than the titles.
 
 **`sparql-university`** estimates 800 minutes of expert time — and 10,000
 minutes for a junior — then grants the agent 900 seconds. A 53× shortfall. Pass
 is exact set-equality against a hardcoded result, and reaching it requires
-knowing which countries were EU members on a specific date. That is memorized
+knowing which countries were EU members on a particular date. That is memorized
 world knowledge, not engineering, and no amount of SPARQL skill recovers it.
 
-**`count-dataset-tokens`** has a genuine defect in the test itself:
+**`count-dataset-tokens`** has a defect in the test itself:
 
 ```python
 expected_output = "79586"
@@ -375,7 +196,7 @@ assert expected_output in actual_output
 
 A substring check. `179586` passes. In the other direction it needs live
 HuggingFace dataset and tokenizer downloads mid-task and demands one exact
-integer, which any tokenizer-version drift changes. Brittle and
+integer that any tokenizer-version drift changes. Brittle and
 false-positive-prone at the same time.
 
 **`break-filter-js-from-html`** requires headless Chrome and Selenium to observe
@@ -386,13 +207,13 @@ identical but for a speculative-decoding flag.
 
 Two more stayed in, flagged rather than dropped. `code-from-image` wants an
 exact SHA-256 after transcribing code from an image, no partial credit, with a
-text-only agent that must install its own OCR. `polyglot-rust-c` is the only
-task in all 89 tagged `no-verified-solution` — nobody has shown it is solvable.
+text-only agent that must install its own OCR — it was solved by nobody.
+`polyglot-rust-c` is the only task in all 89 tagged `no-verified-solution`:
+nobody has shown it is solvable.
 
 The difficulty labels are not calibrated either. `configure-git-webserver` is
 "hard" with a 15-minute expert estimate; `torch-pipeline-parallelism` is also
-"hard" at 240 minutes. Sixteen times the work, same label, same 900-second
-budget.
+"hard" at 240 minutes. Sixteen times the work, same label, same budget.
 
 ### One timeout policy instead of none
 
@@ -401,25 +222,25 @@ budget ranges from 900 to 12,000 seconds, and the ratio of budget to the task's
 *own* expert-time estimate spans **0.06× to 3.3×**. There is no policy; the
 numbers look chosen per task and never reconciled.
 
-`build-pov-ray` is what that costs in practice. Measured on the first `domain20`
-run: it consumed its full **200.5 minutes** and failed, while the other four
-tasks in that run finished in **10 minutes combined**. One task, 95% of the
-elapsed time, for a guaranteed zero.
+`build-pov-ray` is what that costs. Measured on the first domain run: it
+consumed its full **200.5 minutes** and failed, while the other four tasks in
+that run finished in **10 minutes combined**. One task, 95% of the elapsed time,
+for a guaranteed zero.
 
 So every task now gets the same 20 minutes. If an agent has not finished in 20
 minutes it is looping, out of its depth, or on a task that does not belong in a
-21-task examination — and `terminus-2` has no context management, so long runs
+30-task examination — and `terminus-2` has no context management, so long runs
 degrade rather than progress. Harbor only offers timeout *multipliers*, which
 scale proportionally and cannot flatten an outlier, so the subset is
 materialized as copies with `[agent] timeout_sec` rewritten. The verifier's
 budget is deliberately left alone: starving it would turn slow test suites into
 fake failures, which measures the harness rather than the model. `build-pov-ray`
-now fails in 20.5 minutes instead of 200.5, which is the same information for a
-tenth of the electricity.
+now fails in 20.5 minutes instead of 200.5 — the same information for a tenth of
+the electricity.
 
-### What the filter does to difficulty
+### What the filter costs
 
-It makes the benchmark easier, and that is worth stating up front rather than
+It makes the benchmark easier, and that is worth stating rather than
 discovering later:
 
 | pool | n | hard | hard % | median expert |
@@ -429,128 +250,245 @@ discovering later:
 | kept (in-domain) | 49 | 12 | 24% | 45 min |
 
 The exclusions took 18 of the benchmark's 30 hard tasks — 60% of them. That is
-not a mistake in execution, it is inherent to the filter: Terminal-Bench's hard
-tier is concentrated exactly in the science, maths and exotic-language work the
+inherent to the filter rather than a mistake in execution: Terminal-Bench's hard
+tier is concentrated in exactly the science, maths and exotic-language work the
 domain filter removes. Difficulty and domain-relevance are correlated here, and
 you cannot narrow one without paying in the other.
 
-### The domain20 table
-
-Same agent, same scoring, one attempt per task, 21 tasks, 16h34m of GPU time for
-the whole sweep. Model names changed with a config cleanup along the way —
-speculative decoding is now on by default and no longer stated in the name, and
-the Qwen entries carry their version — so `qwen36-27b` here is the model called
-`qwen-27b-mtp` in the table further up.
-
-| model | easy | medium | hard | score | tasks | runtime |
-|---|---|---|---|---|---|---|
-| `qwen36-27b` | 1/1 | 10/15 | **3/5** | **30/46** (65%) | 14/21 | 3h11m |
-| `qwen38-27b` | 1/1 | **11/15** | 1/5 | **26/46** (57%) | 13/21 | 4h06m |
-| `qwen36-35b-moe` | 1/1 | 9/15 | 2/5 | **25/46** (54%) | 12/21 | 2h56m |
-| `gemma-31b-qat` | 1/1 | 9/15 | 1/5 | **22/46** (48%) | 11/21 | 2h55m |
-| `muse-glimmer-30b` | 1/1 | 9/15 | 1/5 | **22/46** (48%) | 11/21 | 3h24m |
-
-These are **not comparable to the `strat20` table above**: different population,
-deliberately narrower, and easier by the measurement in the previous section.
-The interesting part is not the absolute number but what moves.
-
-**Every model roughly doubles.** `qwen-35b-moe-mtp` goes from 17/46 to 25/46,
-`qwen-27b-mtp` from 14/46 to 30/46. Between 48% and 65% of my own kind of work
-is solvable by a model on a 32 GB consumer card, where the general benchmark
-said 15–37%. That is the number I actually wanted, and it is a far more useful
-answer than `strat20` gave.
-
-**The ordering changes.** `qwen-27b-mtp` was second on `strat20` and is first
-here; `qwen-35b-moe-mtp` led there and is third. The dense 27B also takes the
-hard tier 3/5 against the MoE's 2/5, so this is not purely a medium-tier
-artifact. Filtering to the domain does not merely rescale the general result —
-it reorders it.
-
-**Gemma is last again, and that is now twice.** `gemma-31b-qat` wins exam_v3 by
-a wide margin — median 12/13 where the best Qwen manages 6 — and finishes
-last-equal here, having finished fourth on `strat20`. Two independent task
-populations agree. If you are choosing a model to drive a terminal, one-shot
-code synthesis is the wrong instrument, and this is the third piece of evidence
-in this post pointing the same way.
-
-**Newer is not better.** Qwen3.8-27B, released mid-August, ran at the same size,
-quant and samplers as its 3.6 predecessor. It has the best medium tier of the
-five and the worst-equal hard tier, netting 4 points behind, and it is the
-slowest model in the sweep. On exam_v3 it beat 3.6 by six median points. Two
-exams, opposite directions; the reading I will defend is that 3.8 is better at
-writing code in one shot and no better at operating a terminal.
-
-The `n=1` caveat applies here harder than anywhere else in this post. The gap
-between first and third is two tasks, and three individual tasks were observed
-flipping between otherwise-identical reruns during this work. First-versus-last
-is a real difference; adjacent rows are not.
-
-## What is next
-
-- Run the subsets more than once per model, so the noise floor is measured
-  rather than assumed. This comes first, for the reasons given at the top, and
-  three observed task flips make it more urgent than it was.
-- Re-weight `domain20` toward the hard tier. Proportional sampling from a pool
-  that is only 24% hard gives 5 hard tasks out of 21, and those five carry a
-  third of the weighted score.
-- Run the full 89 tasks on at least one model, to find out how much the subset
-  distorts.
-- Look at the trajectories of the tasks nobody solved, which is the part a
-  pass/fail number throws away.
-
-## Appendix A: the 20 `strat20` tasks
-
-`strat20`, drawn from Terminal-Bench 2.1 with seed 42. Descriptions and
-timeouts are the benchmark's own, read from each task's `task.toml`. "Expert"
-is Terminal-Bench's estimate of how long a human expert would take, in minutes.
-
-| task | tier | agent timeout | expert | what it asks |
-|---|---|---:|---:|---|
-| `cobol-modernization` | easy | 15m | 20 | Reverse-engineer a COBOL program's business logic and reimplement it in Python with exact output reproduction. |
-| `break-filter-js-from-html` | medium | 20m | 20 | Bypass an HTML sanitization filter by crafting malicious HTML that triggers JavaScript execution after filtering. |
-| `caffe-cifar-10` | medium | 60m | — | Install and configure BVLC Caffe 1.0.0, train a CNN on CIFAR-10 for exactly 500 iterations CPU-only, hit accuracy thresholds. |
-| `chess-best-move` | medium | 15m | 45 | Analyze a chess position from an image, use an engine to find the best move(s), handle multiple valid solutions. |
-| `compile-compcert` | medium | 40m | 60 | Build the CompCert verified C compiler from source with correct configuration for the host architecture and dependencies. |
-| `distribution-search` | medium | 60m | 120 | Find a probability distribution satisfying precise dual KL divergence constraints through numerical optimization. |
-| `dna-insert` | medium | 30m | 30 | Design PCR primers for site-directed mutagenesis under molecular-biology constraints on primer length and melting temperature. |
-| `filter-js-from-html` | medium | 30m | 45 | Build a robust XSS filter that strips JavaScript from HTML while preserving legitimate structure and content. |
-| `nginx-request-logging` | medium | 15m | 20 | Install and configure Nginx with advanced request logging, rate limiting, and custom error pages. |
-| `portfolio-optimization` | medium | 60m | 120 | Write a C extension for Python doing portfolio risk/return calculations ≥1.2× faster than pure Python, without losing accuracy. |
-| `query-optimize` | medium | 15m | 60 | Rewrite a slow SQL query with correlated subqueries using CTEs and window functions, preserving exact output. |
-| `rstan-to-pystan` | medium | 30m | 180 | Convert an RStan Gaussian Process script to equivalent PyStan 3.10.0, including install, hyperparameter mapping, and numerical verification. |
-| `vulnerable-secret` | medium | 15m | 20 | Analyze a binary, exploit a buffer overflow to bypass authentication, extract a hidden flag. |
-| `bn-fit-modify` | hard | 60m | 480 | Recover a Bayesian Network DAG from data, perform causal interventions, sample from the modified network. |
-| `cancel-async-tasks` | hard | 15m | 120 | Implement async task concurrency control with correct cleanup on cancellation, including the queued-task edge case. |
-| `circuit-fibsqrt` | hard | 60m | 960 | Implement Fibonacci-of-integer-square-root using only combinational and sequential logic gates in an HDL format. |
-| `feal-differential-cryptanalysis` | hard | 30m | 480 | Implement differential cryptanalysis on a FEAL-like cipher to recover a round key via chosen-plaintext attacks. |
-| `feal-linear-cryptanalysis` | hard | 30m | 960 | Perform linear cryptanalysis on a FEAL-like cipher to recover keys from known plaintext-ciphertext pairs. |
-| `make-doom-for-mips` | hard | 15m | 480 | Cross-compile the DOOM engine for MIPS with an LLVM toolchain and verify execution in a JavaScript emulator. |
-| `model-extraction-relu-logits` | hard | 15m | 480 | Extract hidden-layer weights from a black-box ReLU network by querying outputs and locating neuron activation critical points. |
-
-Agent timeouts sum to 630 minutes. Expert estimates sum to 4,700 — about 78
-hours — and that excludes `caffe-cifar-10`, which carries no estimate.
-
----
-
-Full method, per-model llama-server flags, job index, and reproduction steps:
-[`docs/reports/EXAM_V4_2026-08-09_TB21.md`](https://github.com/msf/msf.github.io/blob/main/blogpost/benchmarking_llms/docs/reports/EXAM_V4_2026-08-09_TB21.md).
-The exam_v3 re-run behind Part 5:
-[`docs/reports/EXAM_V3_2026-08-07_R9700.md`](https://github.com/msf/msf.github.io/blob/main/blogpost/benchmarking_llms/docs/reports/EXAM_V3_2026-08-07_R9700.md).
-Charts are generated by
-[`scripts/make-post-charts.py`](https://github.com/msf/msf.github.io/blob/main/blogpost/benchmarking_llms/scripts/make-post-charts.py).
-
-## Appendix B: the 21 `domain20` tasks
-
-`domain20`, drawn with seed 42 from the 49-task in-domain pool, with every
-agent timeout capped at 20 minutes. Rebuilds byte-identically:
+The first cut was 21 tasks. Nine more medium tasks were added afterwards as a
+strict superset, which is why the subset is 30: because nothing was removed, the
+seven models already scored only had to run the nine new tasks, 1h30m each
+instead of a full re-run. It rebuilds in one command:
 
 ```
-scripts/tb21-make-subset.py --name domain20 --size 20 --seed 42 \
+scripts/tb21-make-subset.py --name domain30 --size 30 --seed 42 \
     --exclude-offdomain --cap-agent-timeout 1200
 ```
 
-The "expert" column is Terminal-Bench's own estimate in minutes, left
-uncapped — the gap between it and the 20-minute budget is the point.
+## Running it
+
+One attempt per task, one trial at a time, so only one model is ever resident on
+the GPU. Tier weights are **easy 1, medium 2, hard 3**, so `domain30`'s maximum
+is `1×1 + 24×2 + 5×3 = 64` points.
+
+## Results
+
+![exam_v4 weighted scores on domain30: qwen36-27b-q6 41/64, qwen36-27b 40/64, qwen38-27b 36/64, qwen36-35b-moe 35/64, muse-glimmer-30b 32/64, gemma-26b-moe 29/64, gemma-31b-qat 28/64, split by difficulty tier](/images/exam-v4/exam-v4-scores.svg)
+
+| model | easy | medium | hard | score | tasks | total runtime | per task |
+|---|---|---|---|---|---|---|---|
+| `qwen36-27b-q6` | 1/1 | 17/24 | 2/5 | **41/64** (64%) | 20/30 | 4h54m | 9m |
+| `qwen36-27b` | 1/1 | 15/24 | 3/5 | **40/64** (62%) | 19/30 | 4h44m | 9m |
+| `qwen38-27b` | 1/1 | 16/24 | 1/5 | **36/64** (56%) | 18/30 | 6h06m | 12m |
+| `qwen36-35b-moe` | 1/1 | 14/24 | 2/5 | **35/64** (55%) | 17/30 | 4h16m | 8m |
+| `muse-glimmer-30b` | 1/1 | 14/24 | 1/5 | **32/64** (50%) | 16/30 | 5h01m | 10m |
+| `gemma-26b-moe` | 1/1 | 11/24 | 2/5 | **29/64** (45%) | 14/30 | 4h33m | 9m |
+| `gemma-31b-qat` | 1/1 | 12/24 | 1/5 | **28/64** (44%) | 14/30 | 4h48m | 9m |
+
+34h25m of GPU time for 210 model-task attempts. Every model solves between 14
+and 20 of the 30 tasks — so **between 44% and 64% of my own kind of work is
+solvable by a model running on one 32 GB consumer card.** That is the number
+this whole series has been circling, and `strat20` put it at 15–37%.
+
+### Wall-clock cost
+
+![Wall-clock runtime per model on domain30: 4h16m to 6h06m for 30 tasks](/images/exam-v4/exam-v4-runtime.svg)
+
+The spread is 4h16m to 6h06m, much tighter than `strat20`'s 6h08m–8h10m despite
+half again as many tasks — that is the 20-minute cap doing its work. The 30
+tasks sum to 8h12m of agent timeout, the ceiling a model that failed everything
+would reach.
+
+The ordering is no longer a simple failure counter. `qwen38-27b` is both the
+slowest arm and mid-table; `qwen36-35b-moe` is the fastest and fourth. Measured
+during the earlier runs, decode rate explains less of this than turn-taking
+style does: the MoE models decode at 110–118 tokens/s against 42–49 for the
+dense ones, yet Muse Glimmer emitted about a third fewer completion tokens than
+Gemma while taking nearly three times as many turns — many short commands and a
+look at the result, rather than one long block and an inspection. Runtime tracks
+*total tokens generated* more closely than it tracks either speed or score.
+
+### Per task
+
+Columns, left to right: `qwen36-27b-q6`, `qwen36-27b`, `qwen38-27b`, `qwen36-35b-moe`, `muse-glimmer-30b`, `gemma-26b-moe`, `gemma-31b-qat`.
+
+| task | tier | 3.6 Q6 | 3.6 Q4 | 3.8 | 3.6 MoE | Muse | G26 | G31 |
+|---|---|---|---|---|---|---|---|---|
+| `fix-git` | easy | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `build-cython-ext` | medium | — | — | — | — | — | — | — |
+| `build-pov-ray` | medium | — | — | — | — | — | — | — |
+| `code-from-image` | medium | ✅ | ✅ | ✅ | — | ✅ | — | ✅ |
+| `compile-compcert` | medium | — | — | — | — | — | — | — |
+| `constraints-scheduling` | medium | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `crack-7z-hash` | medium | ✅ | ✅ | — | — | ✅ | ✅ | ✅ |
+| `custom-memory-heap-crash` | medium | — | — | — | — | — | — | — |
+| `db-wal-recovery` | medium | — | — | ✅ | — | — | — | — |
+| `extract-elf` | medium | ✅ | — | ✅ | ✅ | — | — | — |
+| `git-multibranch` | medium | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `headless-terminal` | medium | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `hf-model-inference` | medium | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `kv-store-grpc` | medium | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ |
+| `large-scale-text-editing` | medium | ✅ | ✅ | — | ✅ | ✅ | — | — |
+| `log-summary-date-ranges` | medium | — | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `mailman` | medium | — | — | — | — | ✅ | — | — |
+| `multi-source-data-merger` | medium | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `nginx-request-logging` | medium | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| `openssl-selfsigned-cert` | medium | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ |
+| `qemu-startup` | medium | ✅ | ✅ | — | ✅ | — | — | — |
+| `regex-log` | medium | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ |
+| `sqlite-db-truncate` | medium | ✅ | — | ✅ | — | — | — | — |
+| `sqlite-with-gcov` | medium | ✅ | ✅ | ✅ | — | ✅ | — | — |
+| `vulnerable-secret` | medium | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `cancel-async-tasks` | hard | — | ✅ | — | — | — | — | — |
+| `configure-git-webserver` | hard | ✅ | ✅ | — | ✅ | — | ✅ | ✅ |
+| `fix-code-vulnerability` | hard | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| `torch-pipeline-parallelism` | hard | — | — | — | — | — | — | — |
+| `video-processing` | hard | — | — | — | — | — | — | — |
+
+Six tasks were solved by every model and six by none, leaving **18 of 30 that
+actually discriminate**. On `strat20` that number was 7 of 20. Same benchmark,
+same agent, same models — a subset chosen with the tests read rather than
+sampled blind separates the field more than twice as well.
+
+The six nobody solved are `build-cython-ext`, `build-pov-ray`,
+`compile-compcert`, `custom-memory-heap-crash`, `torch-pipeline-parallelism` and
+`video-processing`. Three of those are "build a large foreign C/C++ project from
+source", which is a coherent weakness rather than a scattering.
+
+## `strat20` versus `domain30`
+
+The two subsets are drawn from the same 89 tasks with the same agent and score
+the same seven models. They overlap in **4 tasks**.
+
+| | `strat20` | `domain30` |
+|---|---|---|
+| tasks | 20 | 30 |
+| drawn from | all 89 | 49 in-domain |
+| easy / medium / hard | 1 / 12 / 7 | 1 / 24 / 5 |
+| agent timeout, as run | 15–60 min, no policy | **20 min, uniform** |
+| total agent budget | 10h30m | 8h12m |
+| median expert estimate | 120 min | 35 min |
+| solved by every model | 3 of 20 | 6 of 30 |
+| solved by none | 10 of 20 | 6 of 30 |
+| **discriminating tasks** | **7 of 20 (35%)** | **18 of 30 (60%)** |
+| score range across models | 15–37% | 44–64% |
+| runtime per model | 6h08m–8h10m | 4h16m–6h06m |
+
+And the rankings they produce:
+
+| model | `strat20` | rank | `domain30` | rank |
+|---|---:|---:|---:|---:|
+| `qwen36-27b-q6` | 9/46 | 6 | **41/64** | **1** |
+| `qwen36-27b` | 14/46 | 3 | **40/64** | **2** |
+| `qwen38-27b` | 14/46 | 3 | **36/64** | **3** |
+| `qwen36-35b-moe` | 17/46 | **1** | 35/64 | 4 |
+| `muse-glimmer-30b` | 10/46 | 5 | 32/64 | 5 |
+| `gemma-26b-moe` | 7/46 | 7 | 29/64 | 6 |
+| `gemma-31b-qat` | 12/46 | 4 | 28/64 | **7** |
+
+Spearman's rank correlation between the two columns is **ρ = 0.20** (p = 0.67).
+The subset that won `strat20` is fourth here; the subset that came sixth is
+first. Two honest, script-drawn samples of the same benchmark, run on the same
+box with the same agent, rank the same seven models very nearly independently.
+
+Which one is right depends on what you are asking. For "how do these models do
+on Terminal-Bench", `strat20`. For "which of these should I run on my machine
+next week", `domain30`. What is not defensible is quoting either as though it
+were a property of the model.
+
+## Conclusions
+
+**Qwen3.8 is not materially better.** Released mid-August and run at the same
+size, quant and samplers as its 3.6 predecessor, it lands third at 36/64 against
+40/64 — behind both Qwen3.6 27B builds — while being the slowest arm in the
+sweep at 6h06m. Its shape is consistent across every subset tried: competitive
+on the medium tier (16/24, the best of the three 27Bs) and alone at the bottom
+on hard (1/5). On exam_v3 in
+[Part 5](https://blog.mfilipe.eu/post/local-llm-dense-models-r9700/) it beat 3.6
+by six median points. The two exams disagree, and the reading I will defend is
+that 3.8 writes better one-shot code and is no better at driving a terminal.
+
+**Q6 edges Q4, and not by enough to matter.** Same Qwen3.6-27B checkpoint, two
+quantizations, identical samplers and drafter depth. Q6 takes it 41/64 to 40/64
+on the largest sample here. But the sign is not stable: Q4 led by 5 points on
+`strat20` and by 3 on the first 21-task cut, and Q6 by 1 on the full 30. A
+difference that changes direction when you add nine tasks is not a difference.
+Q6 costs 6.7 GiB more VRAM, leaving about 4 GiB of headroom on this card instead
+of 11, and on a machine with a history of OOM kills that is the whole argument.
+
+**The Gemma 4 models are not good at this.** They finish sixth and seventh, and
+`gemma-31b-qat` is last — the same model that wins exam_v3 outright with a
+median of 12/13 where the best Qwen manages 6. Its medium tier here is 12/24
+against the leaders' 15–17, so the shortfall is broad rather than a couple of
+unlucky hard tasks. Across `strat20` and `domain30` the Gemmas occupy the bottom
+in both. One-shot code synthesis and agentic competence are close to unrelated,
+and Gemma is the sharpest illustration of it.
+
+**Extending and re-targeting the exam moved the results toward what everyone
+else reports.** Three checks, none of which `strat20` passed:
+
+- Public evaluations place Qwen3.6 27B dense ahead of the 35B-A3B MoE at this
+  size class, and general guidance says dense beats a 3B-active MoE when you are
+  this compute-constrained. `domain30` puts the dense 27Bs first and second and
+  the MoE fourth. `strat20` had the MoE first and the dense 27B third; exam_v3
+  had the dense 27B *last* with a median of 0.
+- Meta publish **51.7%** for Muse Glimmer 30B on Terminal-Bench 2.1 with
+  terminus-2. It scores **50%** here. On `strat20` it scored 22% — less than
+  half the vendor's own number, which I published at the time with the caveat
+  that the gap was unexplained. Most of the gap was the task selection.
+- The 30-task table's spread, 44–64%, is a believable band for quantized local
+  models on agentic work. A table where no model clears 40% and ten of twenty
+  tasks go unsolved by anyone was mostly measuring tasks nobody could do.
+
+**This is the real lesson, and it was a lesson rather than a plan.** Adopting a
+maintained third-party benchmark was supposed to end the work of maintaining my
+own — that was the whole argument for abandoning exam_v3 at the end of Part 5.
+It did not. Open-source benchmarks have bugs: an assertion that accepts the
+wrong answer, a task nobody has shown is solvable, per-task budgets varying 13×
+with no stated policy, difficulty labels that put a 15-minute task and a
+240-minute one in the same tier. Using one blind, and quoting the number it
+produces, is misleading in a way that is hard to detect from the number alone.
+
+The externally-written harness is still worth having — Harbor and terminus-2 are
+far better than anything I would write. But the *task selection and the run
+configuration are mine to own*, and they turned out to matter more than any
+model difference in this post. That is the opposite of what I expected when I
+started Part 6.
+
+## Caveats
+
+**n=1 per task.** Every number here is a single attempt. Three individual tasks
+were observed flipping outcome between otherwise-identical reruns during this
+work. First-versus-last is a real difference; adjacent rows are not, and the
+noise floor of this design is still unmeasured — the same omission that made
+exam_v3's rankings noise in Part 5.
+
+**`domain30` is easier than `strat20` by construction**, and narrower on
+purpose. It is not a general benchmark and its scores should not be compared to
+published Terminal-Bench numbers, with the Muse Glimmer agreement above being an
+observation rather than a validation.
+
+**The 20-minute cap is my choice, not the benchmark's.** It makes some tasks
+unwinnable that a longer budget might have allowed. That is deliberate — it is
+also uniform, which the benchmark's own budgets are not.
+
+## What is next
+
+- Run the subset more than once per model, so the noise floor is measured rather
+  than assumed. This is the top of the list and has been since Part 5.
+- Re-weight toward the hard tier. Proportional sampling from a pool that is only
+  24% hard gives 5 hard tasks out of 30, and those five carry a quarter of the
+  weighted score.
+- Run the full 89 on one model, to quantify how much any subset distorts.
+- Test Muse Glimmer at `xhigh` reasoning, the strength its own model card
+  recommends for agentic work, instead of the `high` default used here.
+
+## Appendix A: the 30 `domain30` tasks
+
+Drawn with seed 42 from the 49-task in-domain pool, with every agent timeout
+capped at 20 minutes. The "expert" column is Terminal-Bench's own estimate in
+minutes, left uncapped — the gap between it and the 20-minute budget is the
+point.
 
 | task | tier | agent timeout | expert | what it asks |
 |---|---|---:|---:|---|
@@ -559,15 +497,24 @@ uncapped — the gap between it and the 20-minute budget is the point.
 | `build-pov-ray` | medium | 20m | 60 | Evaluates the ability to locate, download, patch, and compile legacy POV-Ray 2.2 raytracer from 1990s source archives on a modern system. |
 | `code-from-image` | medium | 20m | 30 | Evaluates an agent's ability to extract code from an image using OCR or vision models, implement the pseudocode logic with cryptographic hashing, and produce the correct output. |
 | `compile-compcert` | medium | 20m | 60 | Evaluates the ability to build the CompCert verified C compiler from source with proper configuration for the host architecture and dependencies. |
+| `constraints-scheduling` | medium | 20m | 15 | Find an optimal 1-hour meeting slot for three people with complex availability constraints by parsing ICS calendars and applying constraint satisfaction with tie-breaking preferences. |
+| `crack-7z-hash` | medium | 20m | 5 | Evaluates the ability to crack a password-protected 7z archive using John the Ripper and extract secret contents. |
+| `custom-memory-heap-crash` | medium | 20m | 30 | Evaluates the ability to debug and fix a C++ program that crashes in release mode due to a static initialization order issue with custom memory allocators and STL locale facets. |
+| `db-wal-recovery` | medium | 15m | 45 | Tests the ability to decrypt an XOR-encrypted SQLite WAL file and recover complete database contents including write-ahead log changes. |
 | `extract-elf` | medium | 15m | 30 | Evaluates ability to parse ELF binary format and extract memory values from executable sections using Node.js. |
+| `git-multibranch` | medium | 15m | 180 | Evaluates the ability to set up a Git server with SSH authentication, implement post-receive hooks for automated multi-branch deployment, and configure Nginx to serve branch-specific content over HTTPS. |
 | `headless-terminal` | medium | 15m | 120 | Implement a Python class that provides a headless terminal interface supporting interactive bash shells, modifier keys, startup file sourcing, and state persistence between commands. |
 | `hf-model-inference` | medium | 15m | 20 | Evaluates the ability to download a Hugging Face transformer model, create a Flask API for sentiment analysis, and run the service in the background with proper error handling. |
 | `kv-store-grpc` | medium | 15m | 15 | Evaluates the ability to build and deploy a gRPC-based key-value store server with Protocol Buffers, including service definition, code generation, implementation, and background process management. |
+| `large-scale-text-editing` | medium | 20m | 40 | Evaluates the ability to efficiently transform a 1-million-row CSV file using keystroke-efficient Vim macros with strict command restrictions. |
 | `log-summary-date-ranges` | medium | 15m | 75 | Evaluates the ability to analyze date-stamped log files, calculate counts across multiple date ranges, and generate structured CSV output. |
 | `mailman` | medium | 20m | 60 | Evaluates the ability to configure a functional mailing list server by integrating postfix and mailman3 with proper join/leave/announce workflows. |
 | `multi-source-data-merger` | medium | 15m | 30 | Evaluates an agent's ability to merge multi-format data sources (JSON, CSV, Parquet) with inconsistent schemas, applying field mappings and priority-based conflict resolution to produce standardized outputs. |
+| `nginx-request-logging` | medium | 15m | 20 | Evaluates the ability to install and configure Nginx with advanced request logging, rate limiting, and custom error pages. |
 | `openssl-selfsigned-cert` | medium | 15m | 20 | Evaluates an agent's ability to generate self-signed TLS certificates using OpenSSL, manage cryptographic keys with proper permissions, and create verification scripts. |
+| `qemu-startup` | medium | 15m | 30 | Evaluates the agent's ability to configure and start a QEMU virtual machine with telnet-accessible serial console, requiring knowledge of QEMU command-line options, network configuration, and system readiness verification. |
 | `regex-log` | medium | 15m | 45 | Tests the ability to construct a complex regular expression that matches dates in log lines containing valid IPv4 addresses while handling edge cases and boundary conditions. |
+| `sqlite-db-truncate` | medium | 15m | 60 | Evaluates the ability to recover data from a corrupted SQLite database using binary file analysis and data recovery techniques. |
 | `sqlite-with-gcov` | medium | 15m | 30 | Evaluates the ability to compile SQLite from source with gcov instrumentation and make it available in the system PATH. |
 | `vulnerable-secret` | medium | 15m | 20 | Evaluates the agent's ability to analyze a binary executable, identify and exploit a buffer overflow vulnerability to bypass authentication, and extract a hidden secret flag. |
 | `cancel-async-tasks` | hard | 15m | 120 | Evaluates the ability to implement async task concurrency control with proper cleanup on cancellation, including the edge case of queued tasks. |
@@ -575,3 +522,54 @@ uncapped — the gap between it and the 20-minute budget is the point.
 | `fix-code-vulnerability` | hard | 15m | 120 | Evaluates the ability to identify and fix a CRLF injection vulnerability (CWE-93) in HTTP header handling code by adding input validation to reject control characters. |
 | `torch-pipeline-parallelism` | hard | 15m | 240 | Evaluates the ability to implement pipeline parallel training for LLaMA using PyTorch distributed primitives with all-forward-all-backward scheduling. |
 | `video-processing` | hard | 20m | 400 | Evaluates the ability to build a computer vision script that analyzes hurdle jump videos and extracts takeoff/landing frame numbers using OpenCV. |
+
+## Appendix B: `strat20`, the earlier random subset
+
+The first defensible subset: 20 tasks drawn proportionally from all 89 with seed
+42, no domain filter and no timeout policy. Kept because it is what this post
+originally reported, and because the difference between the two tables is the
+argument of the post.
+
+Model names changed with a config cleanup between the two runs — speculative
+decoding is now on by default and no longer stated in the name, and the Qwen
+entries carry their version. `qwen-27b-mtp` is `qwen36-27b`, `qwen-35b-moe-mtp`
+is `qwen36-35b-moe`, `qwen-27b-mtp-q6` is `qwen36-27b-q6`.
+
+| model | easy | medium | hard | score | tasks | runtime | per task |
+|---|---|---|---|---|---|---|---|
+| `qwen-35b-moe-mtp` | 1/1 | 5/12 | 2/7 | **17/46** (37%) | 8/20 | 6h08m | 18m |
+| `qwen-27b-mtp` | 1/1 | 5/12 | 1/7 | **14/46** (30%) | 7/20 | 7h15m | 21m |
+| `qwen38-27b` | 0/1 | 4/12 | 2/7 | **14/46** (30%) | 6/20 | 7h46m | 23m |
+| `gemma-31b-qat` | 1/1 | 4/12 | 1/7 | **12/46** (26%) | 6/20 | 7h36m | 22m |
+| `muse-glimmer-30b` | 1/1 | 3/12 | 1/7 | **10/46** (22%) | 5/20 | 6h42m | 20m |
+| `qwen-27b-mtp-q6` | 1/1 | 4/12 | 0/7 | **9/46** (20%) | 5/20 | 7h13m | 21m |
+| `gemma-26b-moe` | 1/1 | 3/12 | 0/7 | **7/46** (15%) | 4/20 | 8h10m | 24m |
+
+No model clears 40%, and ten of the twenty tasks were solved by nobody. Three
+tasks were solved by everybody. The hard tier saw five solves across 49
+model-task pairs.
+
+The 20 tasks:
+
+| task | tier | agent timeout | expert | what it asks |
+|---|---|---:|---:|---|
+| `cobol-modernization` | easy | 15m | 20 | Evaluates the ability to reverse-engineer and reimplement a COBOL program's business logic in Python with exact output reproduction. |
+| `break-filter-js-from-html` | medium | 20m | 20 | Evaluates the agent's ability to bypass an HTML sanitization filter by crafting malicious HTML that triggers JavaScript execution after filtering. |
+| `caffe-cifar-10` | medium | 60m | — | Evaluates the ability to install and configure BVLC Caffe 1.0.0, train a CNN on CIFAR-10 for exactly 500 iterations in CPU-only mode, and achieve specified accuracy thresholds. |
+| `chess-best-move` | medium | 15m | 45 | Evaluates the agent's ability to analyze a chess position from an image, use a chess engine to find the best move(s), and handle multiple valid solutions. |
+| `compile-compcert` | medium | 40m | 60 | Evaluates the ability to build the CompCert verified C compiler from source with proper configuration for the host architecture and dependencies. |
+| `distribution-search` | medium | 60m | 120 | Tests the ability to find a probability distribution satisfying precise dual KL divergence constraints through numerical optimization. |
+| `dna-insert` | medium | 30m | 30 | Evaluates the ability to design PCR primers for site-directed mutagenesis by analyzing plasmid sequences and applying molecular biology constraints on primer length and melting temperature. |
+| `filter-js-from-html` | medium | 30m | 45 | Evaluates the agent's ability to create a robust XSS filter that removes JavaScript from HTML files while preserving legitimate HTML structure and content. |
+| `nginx-request-logging` | medium | 15m | 20 | Evaluates the ability to install and configure Nginx with advanced request logging, rate limiting, and custom error pages. |
+| `portfolio-optimization` | medium | 60m | 120 | Evaluates the ability to implement a high-performance C extension for Python that performs portfolio risk and return calculations at least 1.2x faster than a pure Python baseline while maintaining numerical accuracy. |
+| `query-optimize` | medium | 15m | 60 | Evaluates the ability to optimize a slow SQL query with correlated subqueries by rewriting it using CTEs and window functions while preserving exact output. |
+| `rstan-to-pystan` | medium | 30m | 180 | Evaluates the ability to convert an RStan Gaussian Process script to functionally equivalent PyStan 3.10.0 code, including complex installation, hyperparameter mapping, and numerical verification of posterior estimates. |
+| `vulnerable-secret` | medium | 15m | 20 | Evaluates the agent's ability to analyze a binary executable, identify and exploit a buffer overflow vulnerability to bypass authentication, and extract a hidden secret flag. |
+| `bn-fit-modify` | hard | 60m | 480 | Evaluates the ability to recover a Bayesian Network DAG structure from data, perform causal interventions, and sample from the modified network. |
+| `cancel-async-tasks` | hard | 15m | 120 | Evaluates the ability to implement async task concurrency control with proper cleanup on cancellation, including the edge case of queued tasks. |
+| `circuit-fibsqrt` | hard | 60m | 960 | Evaluates the agent's ability to implement complex mathematical functions (Fibonacci of integer square root) using only combinational and sequential logic gates in a hardware description format. |
+| `feal-differential-cryptanalysis` | hard | 30m | 480 | Evaluates the ability to implement differential cryptanalysis on a FEAL-like cipher to recover a round key through chosen plaintext attacks. |
+| `feal-linear-cryptanalysis` | hard | 30m | 960 | Evaluates the ability to perform linear cryptanalysis on a FEAL-like cipher to recover encryption keys from known plaintext-ciphertext pairs. |
+| `make-doom-for-mips` | hard | 15m | 480 | Evaluates ability to cross-compile the DOOM game engine for MIPS architecture using LLVM toolchain and verify execution in a JavaScript emulator. |
+| `model-extraction-relu-logits` | hard | 15m | 480 | Extracts hidden layer weights from a black-box ReLU neural network by querying outputs and identifying critical points where neurons activate. |

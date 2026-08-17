@@ -171,21 +171,22 @@ def chart_throughput():
 # ── 3. exam_v4 weighted score ────────────────────────────────────────────────
 def chart_scores():
     rows = [
-        ("qwen-35b-moe-mtp", 1, 5, 2),
-        ("qwen-27b-mtp", 1, 5, 1),
-        ("gemma-31b-qat", 1, 4, 1),
-        ("muse-glimmer-30b", 1, 3, 1),
-        ("qwen-27b-mtp-q6", 1, 4, 0),
-        ("gemma-26b-moe", 1, 3, 0),
+        ("qwen36-27b-q6", 1, 17, 2),
+        ("qwen36-27b", 1, 15, 3),
+        ("qwen38-27b", 1, 16, 1),
+        ("qwen36-35b-moe", 1, 14, 2),
+        ("muse-glimmer-30b", 1, 14, 1),
+        ("gemma-26b-moe", 1, 11, 2),
+        ("gemma-31b-qat", 1, 12, 1),
     ]
     top, row_h, bh = 76, 40, 20
     height = top + len(rows) * row_h + 30
     x0, x1 = PAD_L, W - PAD_R - 74
-    sx = lambda v: (x1 - x0) * v / 46.0
+    sx = lambda v: (x1 - x0) * v / 64.0
 
-    b = header("exam_v4: weighted score on strat20",
-               "20 Terminal-Bench 2.1 tasks, one attempt each · easy 1, "
-               "medium 2, hard 3 · max 46")
+    b = header("exam_v4: weighted score on domain30",
+               "30 in-domain Terminal-Bench 2.1 tasks, one attempt each · easy 1, "
+               "medium 2, hard 3 · max 64")
     lx = INSET
     for tier, label in (("easy", "easy"), ("medium", "medium"), ("hard", "hard")):
         b += f'<rect x="{lx}" y="46" width="10" height="10" rx="2" fill="{TIER[tier]}"/>\n'
@@ -197,7 +198,7 @@ def chart_scores():
         pts = [("easy", e * 1), ("medium", m * 2), ("hard", h * 3)]
         total = sum(p for _, p in pts)
         b += text(x0 - 14, y + 15, name, size=13, anchor="end")
-        b += (f'<rect x="{x0}" y="{y}" width="{sx(46):.1f}" height="{bh}" rx="4" '
+        b += (f'<rect x="{x0}" y="{y}" width="{sx(64):.1f}" height="{bh}" rx="4" '
               f'fill="{GRID}" opacity="0.5"/>\n')
         cx = x0
         drawn = [(t, p) for t, p in pts if p > 0]
@@ -216,21 +217,22 @@ def chart_scores():
 # ── 4. wall-clock cost ───────────────────────────────────────────────────────
 def chart_runtime():
     rows = [
-        ("qwen-35b-moe-mtp", 6.13, "6h08m", 8),
-        ("qwen-27b-mtp", 7.25, "7h15m", 7),
-        ("gemma-31b-qat", 7.60, "7h36m", 6),
-        ("muse-glimmer-30b", 6.70, "6h42m", 5),
-        ("qwen-27b-mtp-q6", 7.22, "7h13m", 5),
-        ("gemma-26b-moe", 8.17, "8h10m", 4),
+        ("qwen38-27b", 6.10, "6h06m", 18),
+        ("muse-glimmer-30b", 5.02, "5h01m", 16),
+        ("qwen36-27b-q6", 4.90, "4h54m", 20),
+        ("gemma-31b-qat", 4.80, "4h48m", 14),
+        ("qwen36-27b", 4.73, "4h44m", 19),
+        ("gemma-26b-moe", 4.55, "4h33m", 14),
+        ("qwen36-35b-moe", 4.27, "4h16m", 17),
     ]
     top, row_h, bh = 76, 40, 20
     height = top + len(rows) * row_h + 32
     x0, x1 = PAD_L, W - PAD_R - 96
-    mx = 9.0
+    mx = 7.0
     sx = lambda v: (x1 - x0) * v / mx
 
-    b = header("What 20 tasks cost in wall-clock time",
-               "one attempt per task, one trial at a time · 43h06m total")
+    b = header("What 30 tasks cost in wall-clock time",
+               "one attempt per task, one trial at a time · 34h25m total")
     b += text(INSET, 55, "more failures → more time: a failed task burns its whole "
               "agent timeout", size=12, fill=MUTED)
 

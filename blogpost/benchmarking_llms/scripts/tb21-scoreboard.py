@@ -130,10 +130,17 @@ def merge_runs(runs, suite):
     A rerun of a single task (e.g. after GPU contention invalidated it) is its
     own job, so per-model results must merge across jobs rather than the later
     job replacing the earlier one wholesale. Wall time sums across jobs.
+
+    `suite` may be a set of names, which unions them into one table. That is how
+    a superset subset is scored without re-running its shared tasks: `domain30`
+    is the `domain20` jobs plus the `domain30-delta` jobs. Only sound when the
+    shared task definitions are byte-identical between the two, which was
+    checked by hashing every shared task.toml before the delta was run.
     """
+    suites = suite if isinstance(suite, (set, frozenset, list, tuple)) else {suite}
     merged = {}
     for r in runs:  # runs arrive in job-name order, so later jobs overwrite
-        if r["suite"] != suite:
+        if r["suite"] not in suites:
             continue
         m = merged.setdefault(r["model"], {"trials": {}, "wall": 0.0, "done": True,
                                            "jobs": [], "tok_in": 0, "tok_out": 0})
@@ -147,7 +154,7 @@ def merge_runs(runs, suite):
 
 
 def summarize(runs, suite):
-    """model -> per-tier and overall pass counts, for one suite."""
+    """model -> per-tier and overall pass counts, for one suite (or set of them)."""
     out = {}
     for model, r in merge_runs(runs, suite).items():
         r = dict(r, model=model)
@@ -288,7 +295,7 @@ def _short(model):
     return model.replace("qwen-", "q").replace("gemma-", "g").replace("-moe", "").replace("-mtp", "*")
 
 
-def html_page(summary, suite, runs, meta):
+def html_page(summary, label, runs, meta, suites):
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     rows = sorted(summary.items(), key=by_points)
     weights = " · ".join(f"{t} {POINTS[t]}pt" for t in TIERS)
@@ -324,11 +331,11 @@ def html_page(summary, suite, runs, meta):
                f'{sum(s["n"] for _, s in rows)} trials.</div>')
 
     models = [m for m, _ in rows]
-    slugs = sorted({s for v in merge_runs(runs, suite).values() for s in v["trials"]},
+    slugs = sorted({s for v in merge_runs(runs, suites).values() for s in v["trials"]},
                    key=lambda s: (TIERS.index(meta.get(s, ("hard", 0))[0])
                                   if meta.get(s, ("?", 0))[0] in TIERS else 9,
                                   meta.get(s, ("?", 0))[1]))
-    bym = {m: v["trials"] for m, v in merge_runs(runs, suite).items()}
+    bym = {m: v["trials"] for m, v in merge_runs(runs, suites).items()}
 
     out.append("<h2>Per task</h2><div>")
     for slug in slugs:
@@ -370,21 +377,26 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=pathlib.Path, default=JOBS)
     ap.add_argument("--tasks", type=pathlib.Path, default=TASKS)
-    ap.add_argument("--suite", default="strat20")
+    ap.add_argument("--suite", default="strat20",
+                    help="suite name, or a comma-separated set to union into one "
+                         "table (e.g. domain20,domain30-delta)")
+    ap.add_argument("--suite-label", help="heading to use when --suite is a set")
     ap.add_argument("--html", type=pathlib.Path)
     a = ap.parse_args()
 
     if not a.jobs.is_dir():
         sys.exit(f"no jobs directory: {a.jobs}")
+    suites = {s.strip() for s in a.suite.split(",") if s.strip()}
+    label = a.suite_label or (a.suite if len(suites) == 1 else " + ".join(sorted(suites)))
     meta = task_meta(a.tasks)
     runs = read_jobs(a.jobs, meta)
-    summary = summarize(runs, a.suite)
+    summary = summarize(runs, suites)
     if not summary:
         sys.exit(f"no completed runs for suite {a.suite}")
 
-    print(md_table(summary, a.suite))
+    print(md_table(summary, label))
     if a.html:
-        a.html.write_text(html_page(summary, a.suite, runs, meta))
+        a.html.write_text(html_page(summary, label, runs, meta, suites))
         print(f"\nwrote {a.html}", file=sys.stderr)
 
 

@@ -151,6 +151,17 @@ def main():
     ap.add_argument("--out", type=pathlib.Path, default=OUT)
     ap.add_argument("--exclude-offdomain", action="store_true",
                     help="draw only from the in-domain pool (see OFFDOMAIN)")
+    ap.add_argument("--extend", metavar="NAME",
+                    help="build a superset of an existing subset: keep all of its "
+                         "tasks and draw only the remainder up to --size")
+    ap.add_argument("--extend-tier", metavar="TIERS",
+                    help="with --extend, draw the new tasks only from these tiers "
+                         "(comma-separated, e.g. medium)")
+    ap.add_argument("--delta-only", action="store_true",
+                    help="with --extend, emit ONLY the newly drawn tasks. Lets a "
+                         "model already scored on the base subset be topped up "
+                         "without re-running tasks it has already done; score the "
+                         "two together with tb21-scoreboard.py --suite a,b")
     ap.add_argument("--cap-agent-timeout", type=float, default=None, metavar="SEC",
                     help="cap each task's [agent] timeout_sec at SEC. Materialises "
                          "the subset as copies instead of symlinks, since the "
@@ -168,15 +179,50 @@ def main():
         pop = [t for t in pop if t[0] not in OFFDOMAIN]
         print(f"  in-domain pool: {len(pop)} of {len(pop) + len(OFFDOMAIN)} tasks")
 
-    by = collections.defaultdict(list)
-    for n, d, to in pop:
-        by[d].append((n, to))
-
     random.seed(a.seed)
-    pick = []
-    for d in TIERS:
-        k = max(1, round(a.size * len(by[d]) / len(pop)))
-        pick += [(n, d, to) for n, to in random.sample(sorted(by[d]), min(k, len(by[d])))]
+
+    if a.extend:
+        # Superset mode: keep every task of an existing subset and draw only the
+        # remainder. This is what makes an extension affordable — runs already
+        # scored on the base subset stay valid, so a model only needs the new
+        # tasks, not all of them.
+        src = a.out / a.extend
+        if not src.is_dir():
+            sys.exit(f"--extend: no such subset: {src}")
+        base = sorted(p.name for p in src.iterdir() if p.is_dir() or p.is_symlink())
+        index = {n: (n, d, to) for n, d, to in pop}
+        missing = [n for n in base if n not in index]
+        if missing:
+            sys.exit(f"--extend: base tasks absent from the current pool "
+                     f"(off-domain filter changed?): {missing}")
+        need = a.size - len(base)
+        if need <= 0:
+            sys.exit(f"--extend: --size {a.size} is not larger than {a.extend} ({len(base)})")
+
+        rest = [t for t in pop if t[0] not in set(base)]
+        if a.extend_tier:
+            want = set(a.extend_tier.split(","))
+            bad = want - set(TIERS)
+            if bad:
+                sys.exit(f"--extend-tier: unknown tier(s): {sorted(bad)}")
+            rest = [t for t in rest if t[1] in want]
+        if need > len(rest):
+            sys.exit(f"--extend: need {need} more tasks, only {len(rest)} available"
+                     + (f" in tier(s) {a.extend_tier}" if a.extend_tier else ""))
+
+        new = random.sample(sorted(rest), need)
+        pick = new if a.delta_only else [index[n] for n in base] + new
+        print(f"  extending {a.extend}: {len(base)} kept + {need} new"
+              + (f" ({a.extend_tier})" if a.extend_tier else "")
+              + ("  [delta-only: emitting the new tasks alone]" if a.delta_only else ""))
+    else:
+        by = collections.defaultdict(list)
+        for n, d, to in pop:
+            by[d].append((n, to))
+        pick = []
+        for d in TIERS:
+            k = max(1, round(a.size * len(by[d]) / len(pop)))
+            pick += [(n, d, to) for n, to in random.sample(sorted(by[d]), min(k, len(by[d])))]
 
     dest = a.out / a.name
     if dest.exists():
