@@ -399,11 +399,16 @@ were a property of the model.
 ## Conclusions
 
 **Qwen3.8 is not materially better.** Released mid-August and run at the same
-size, quant and samplers as its 3.6 predecessor, it lands third at 36/64 against
-40/64 — behind both Qwen3.6 27B builds — while being the slowest arm in the
-sweep at 6h06m. Its shape is consistent across every subset tried: competitive
-on the medium tier (16/24, the best of the three 27Bs) and alone at the bottom
-on hard (1/5). On exam_v3 in
+size, quant and samplers as its 3.6 predecessor, it lands third at 36/64 against 40/64 — behind both
+Qwen3.6 27B builds — while being the slowest arm in the sweep at 6h06m against
+the 3.6 Q4's 4h44m on the identical tasks, 29% more wall clock. On
+`strat20` the two tied outright at 14/46. So the defensible claim is that it is
+not better, not that it is worse. On `domain30` it is strong on the medium tier — 16/24, the
+best of the three 27Bs — and joint-last on hard, 1/5. That pattern does not
+replicate: on `strat20` its hard tier was 2/7, the joint *best* of the seven,
+with a mid-table medium tier. And `domain20` and `domain30` share 21 tasks, so
+they are not independent measurements. The hard-tier weakness rests on one
+sample of five tasks, and should be read as such. On exam_v3 in
 [Part 5](https://blog.mfilipe.eu/post/local-llm-dense-models-r9700/) it beat 3.6
 by six median points. The two exams disagree, and the reading I will defend is
 that 3.8 writes better one-shot code and is no better at driving a terminal.
