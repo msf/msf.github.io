@@ -3,6 +3,42 @@
 > **Moved to [blog.mfilipe.eu](https://blog.mfilipe.eu/).**
 > Posts, papers and talk notes all live there now.
 
+## Building and publishing
+
+Hugo site, `risotto` theme vendored under `themes/` (no submodules). Posts live in
+`content/post/`, images in `static/images/`. Needs Hugo **extended** (built with
+v0.130.0).
+
+Preview locally without touching the live site:
+
+```bash
+hugo server -D              # http://localhost:1313
+hugo --destination /tmp/x   # build only, to check it compiles
+```
+
+Publish:
+
+```bash
+./scripts/build.sh
+```
+
+That builds into `public/` (gitignored) and then `rsync --delete`s it to
+`/srv/selfhost/blog/site`, which Caddy serves read-only for `blog.mfilipe.eu`
+(see `/srv/selfhost/caddy/Caddyfile.production`). Override with `BLOG_DEST=` or
+`HUGO=` if either path differs. The script refuses to rsync from an empty build
+dir, so a failed build cannot wipe the live site.
+
+**There is no CI.** Pushing to GitHub only backs up the source; it does not
+deploy. `./scripts/build.sh` is the only thing that changes what is live.
+
+Two front-matter conventions worth knowing:
+
+- `_build: {list: never, render: always}` publishes a post at its URL but keeps it
+  off the home page and out of the RSS feed. Used for posts that are linked only
+  from their own series.
+- Reference images as absolute site paths (`/images/foo/bar.png`), never as bare
+  filenames. A bare filename resolves against the post URL and silently 404s.
+
 ## About me
 
 I'm Miguel Mascarenhas Filipe, and I like to solve problems so much that one of my mottos is *"problems are waiting to be solved"*. On twitter "Sui *generis, creative & adventurer. Loves distributed systems, hard problems, and First Principles Engineering"*
