@@ -1,5 +1,5 @@
 ---
-title: "Terminal-Bench 2.1 on a consumer GPU: what is a little machine actually worth?"
+title: "DRAFT — Terminal-Bench 2.1 on a consumer GPU: what is a little machine actually worth?"
 date: 2026-08-13T18:00:00+01:00
 _build:
   list: never      # published, but not linked from the home page or RSS
@@ -7,6 +7,10 @@ _build:
 ---
 
 *August 2026*[^1]
+
+> **DRAFT.** Unreviewed. The numbers are from real runs and the tables reconcile,
+> but the prose has had no editing pass and the claims have not been checked by a
+> human. Do not quote this yet.
 
 *Part 6/6 — **Part 6** ← [Part 5](https://blog.mfilipe.eu/post/local-llm-dense-models-r9700/) ← [Part 4](https://blog.mfilipe.eu/post/benchmarking_llms-v3-rebuild/) ← [Part 3](https://blog.mfilipe.eu/post/local-llm-coding-harder-test/) ← [Part 2](https://blog.mfilipe.eu/post/local-llm-performance-framework13/) ← [Part 1](https://blog.mfilipe.eu/post/benchmarking-local-llms-go-coding/)*
 
